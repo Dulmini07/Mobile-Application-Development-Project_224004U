@@ -1,7 +1,7 @@
-import React, { useEffect, useRef } from 'react';
-import { View, FlatList, Text } from 'react-native';
-import { useAppSelector } from '@/src/store/hooks';
 import MatchCard from '@/src/components/MatchCard';
+import { useAppSelector } from '@/src/store/hooks';
+import React, { useEffect, useRef } from 'react';
+import { FlatList, Text, View } from 'react-native';
 
 export default function FavouritesScreen() {
   const favourites = useAppSelector((state) => state.favourites.items);

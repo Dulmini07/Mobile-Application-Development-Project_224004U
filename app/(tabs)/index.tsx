@@ -1,9 +1,9 @@
-import React from 'react';
-import { View, FlatList, Text } from 'react-native';
-import { useRouter } from 'expo-router';
+import MatchCard from '@/src/components/MatchCard';
 import { addFavourite, removeFavourite } from '@/src/store';
 import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
-import MatchCard from '@/src/components/MatchCard';
+import { useRouter } from 'expo-router';
+import React from 'react';
+import { FlatList, Text, View } from 'react-native';
 
 // Dummy match data
 const matches = [

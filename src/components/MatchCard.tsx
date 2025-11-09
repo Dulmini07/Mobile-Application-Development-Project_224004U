@@ -1,6 +1,6 @@
-import React from 'react';
-import { View, Text, Image, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import React from 'react';
+import { Image, Text, TouchableOpacity, View } from 'react-native';
 
 export default function MatchCard({ item, onPress, onFavourite, onToggleFavourite, isFav }: any) {
   const handleFav = () => {

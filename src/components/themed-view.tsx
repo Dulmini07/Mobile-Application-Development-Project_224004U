@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, ViewProps, Platform, StyleProp, ViewStyle } from 'react-native';
+import { Platform, StyleProp, View, ViewProps, ViewStyle } from 'react-native';
 
 import { useThemeColor } from '@/hooks/use-theme-color';
 
