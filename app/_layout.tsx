@@ -1,17 +1,13 @@
-import React from 'react';
+import { persistor, store } from '@/src/store';
 import { Stack } from 'expo-router';
+import React from 'react';
+import { ActivityIndicator } from 'react-native';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
-import { ActivityIndicator } from 'react-native';
-import { store as realStore, persistor } from '../src/store';
-
-// ✅ Guarantee only one Redux store instance (avoids reinitialization)
-const store = (globalThis as any).__APP_STORE__ ?? ((globalThis as any).__APP_STORE__ = realStore);
 
 export default function RootLayout() {
   return (
     <Provider store={store}>
-      {/* Redux Persist Gate ensures saved data loads before UI renders */}
       <PersistGate loading={<ActivityIndicator size="large" color="#007AFF" />} persistor={persistor}>
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />

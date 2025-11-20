@@ -19,6 +19,7 @@ export default function MatchCard({ item, onPress, onFavourite, onToggleFavourit
         overflow: 'hidden',
         elevation: 2,
       }}
+      activeOpacity={0.9}
     >
       <Image source={{ uri: item.image }} style={{ width: '100%', height: 150 }} />
       <View
@@ -29,9 +30,14 @@ export default function MatchCard({ item, onPress, onFavourite, onToggleFavourit
           alignItems: 'center',
         }}
       >
-        <View>
+        <View style={{ flex: 1, paddingRight: 8 }}>
           <Text style={{ fontSize: 18, fontWeight: 'bold' }}>{item.title}</Text>
-          <Text>Score: {item.score}</Text>
+          {item.time ? (
+            <Text style={{ color: '#666', marginTop: 4 }}>{item.time}</Text>
+          ) : null}
+          {item.score ? (
+            <Text style={{ color: '#333', marginTop: 6, fontWeight: '600' }}>{item.score}</Text>
+          ) : null}
         </View>
         <TouchableOpacity
           onPress={(e: any) => {
