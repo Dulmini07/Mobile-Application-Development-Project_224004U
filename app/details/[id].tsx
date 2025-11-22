@@ -1,8 +1,9 @@
 import { addFavourite, removeFavourite } from '@/src/store';
 import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
 import { useLocalSearchParams } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
+  Animated,
   Image,
   Linking,
   ScrollView,
@@ -12,235 +13,216 @@ import {
   View,
 } from 'react-native';
 
-export default function DetailsScreen() {
-  const item = useLocalSearchParams() as any; // full match object passed from Home
+// replace static import with runtime require + fallback
+let LinearGradient: any;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  LinearGradient = require('expo-linear-gradient').LinearGradient;
+} catch {
+  // fallback: simple wrapper that renders a View with same style children
+  // keeps UI working if expo-linear-gradient isn't installed
+  // eslint-disable-next-line react/display-name
+  LinearGradient = ({ children, style }: any) => {
+    const { View } = require('react-native');
+    return <View style={style}>{children}</View>;
+  };
+}
+
+export default function MatchDetails() {
+  const params = useLocalSearchParams() as Record<string, any>;
+  const { id, title, image, score, time } = params;
+
+  // redux hooks for favourites
   const dispatch = useAppDispatch();
-  const favourites = useAppSelector((s) => s.favourites.items || []);
-  const idKey = item.idEvent ?? item.id ?? item.id; // accept multiple id shapes
-  const isFav = favourites.some((m: any) => (m.idEvent ?? m.id) === idKey);
+  const favourites = useAppSelector((s) => s.favourites.items ?? []);
+  const idKey = id ?? title ?? image;
+  const isFav = favourites.some((f: any) => (f.idEvent ?? f.id ?? f.title) === idKey);
+
+  // dummy data (local only)
+  const dummyHighlights = [
+    { id: 'h1', title: 'Match Highlights 1', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+    { id: 'h2', title: 'Top Goal', url: 'https://www.youtube.com/watch?v=3JZ_D3ELwOQ' },
+  ];
+
+  const dummyPlayers = [
+    { id: 'p1', name: 'A. Silva', position: 'Forward', number: 9, nationality: 'BRA' },
+    { id: 'p2', name: 'J. Smith', position: 'Midfielder', number: 8, nationality: 'ENG' },
+    { id: 'p3', name: 'L. Gomez', position: 'Defender', number: 4, nationality: 'ESP' },
+  ];
 
   const toggleFavourite = () => {
+    // ensure payload matches FavouriteItem (includes `id`)
+    const payload = { id: idKey, idEvent: idKey, title, image, score, time };
     if (isFav) dispatch(removeFavourite(idKey));
-    else dispatch(addFavourite(item));
+    else dispatch(addFavourite(payload));
   };
 
-  const openVideo = (url?: string) => {
-    if (!url) return;
-    Linking.openURL(url).catch(() => {
-      /* ignore errors */
-    });
-  };
+  // Fade + Slide Animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(40)).current;
 
-  // friendly fallbacks when SportsDB fields are missing
-  const league = item.strLeague ?? item.league ?? 'International Friendly';
-  const stadium = item.strVenue ?? item.venue ?? 'National Stadium';
-  const sport = item.strSport ?? item.sport ?? 'Football';
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [fadeAnim, slideAnim]);
 
   return (
-    // make contentContainer fill and center vertically
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.scrollContent}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* simple header fallback (no expo-linear-gradient required) */}
-      <View style={styles.headerFallback}>
-        <Text style={styles.headerTitle}>{item.strEvent ?? item.title}</Text>
-        <Text style={styles.headerSub}>
-          {(item.dateEvent ?? item.date) || ''} {item.strTime ?? item.time ?? ''}
-        </Text>
-      </View>
+    <ScrollView style={{ flex: 1, backgroundColor: '#fff' }}>
+      {/* HEADER WITH GRADIENT */}
+      <LinearGradient colors={['#0047AB', '#002F6C']} style={styles.header}>
+        <Text style={styles.headerTitle}>{title ?? 'Match Details'}</Text>
+      </LinearGradient>
 
-      {/* Centered hovering card */}
-      <View style={styles.cardContainer}>
-        <View style={styles.card}>
-          {/* Card header: repeat match name/details inside the card */}
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>{item.strEvent ?? item.title}</Text>
-            <Text style={styles.cardSubtitle}>
-              {item.strLeague ?? item.league ?? ''} {item.dateEvent ? `• ${item.dateEvent}` : ''}
-            </Text>
-          </View>
+      {/* ANIMATED MAIN CARD */}
+      <Animated.View
+        style={[
+          styles.card,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          },
+        ]}>
+        {/* Team Logo */}
+        {image ? (
+          <Image source={{ uri: image }} style={styles.logo} />
+        ) : (
+          <View
+            style={[
+              styles.logo,
+              { backgroundColor: '#eee', borderRadius: 12 },
+            ]}
+          />
+        )}
 
-          {/* Teams Row */}
-          <View style={styles.teamsRow}>
-            <View style={styles.team}>
-              {item.strHomeTeamBadge || item.homeBadge || item.homeLogo ? (
-                <Image
-                  source={{ uri: item.strHomeTeamBadge ?? item.homeBadge ?? item.homeLogo }}
-                  style={styles.teamLogo}
-                />
-              ) : null}
-              <Text style={styles.teamName}>{item.strHomeTeam ?? item.homeTeam}</Text>
+        <Text style={styles.scoreText}>{score ?? 'Match Soon'}</Text>
+
+        <Text style={styles.label}>Match Time</Text>
+        <Text style={styles.value}>{time ?? 'Not Available'}</Text>
+
+        {/* Add / Remove Favourite */}
+        <TouchableOpacity
+          onPress={toggleFavourite}
+          style={{
+            marginTop: 12,
+            backgroundColor: isFav ? '#ff4444' : '#1e90ff',
+            paddingVertical: 10,
+            borderRadius: 10,
+            alignItems: 'center',
+          }}>
+          <Text style={{ color: '#fff', fontWeight: '700' }}>
+            {isFav ? 'Remove from Favourites' : 'Add to Favourites'}
+          </Text>
+        </TouchableOpacity>
+      </Animated.View>
+
+      {/* Animated Section: Highlights */}
+      <Animated.View
+        style={[
+          styles.section,
+          {
+            opacity: fadeAnim,
+          },
+        ]}>
+        <Text style={styles.sectionTitle}>📺 Highlights</Text>
+        {dummyHighlights.map((h) => (
+          <TouchableOpacity key={h.id} onPress={() => Linking.openURL(h.url)} style={{ paddingVertical: 8 }}>
+            <Text style={{ color: '#1e90ff', fontWeight: '600' }}>{h.title}</Text>
+          </TouchableOpacity>
+        ))}
+      </Animated.View>
+
+      {/* Players Section Placeholder */}
+      <Animated.View
+        style={[
+          styles.section,
+          {
+            opacity: fadeAnim,
+          },
+        ]}>
+        <Text style={styles.sectionTitle}>👥 Players</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+          {dummyPlayers.map((p) => (
+            <View key={p.id} style={{ width: 140, marginRight: 12, alignItems: 'center' }}>
+              <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#eee', marginBottom: 8 }} />
+              <Text style={{ fontWeight: '700' }}>{p.name}</Text>
+              <Text style={{ color: '#666' }}>{p.position}</Text>
+              <Text style={{ color: '#999' }}>#{p.number} • {p.nationality}</Text>
             </View>
-
-            <View style={styles.vs}>
-              <Text style={styles.vsText}>VS</Text>
-              {item.intHomeScore != null && item.intAwayScore != null ? (
-                <Text style={styles.scoreText}>
-                  {item.intHomeScore} - {item.intAwayScore}
-                </Text>
-              ) : item.score ? (
-                <Text style={styles.scoreText}>{item.score}</Text>
-              ) : null}
-            </View>
-
-            <View style={styles.team}>
-              {item.strAwayTeamBadge || item.awayBadge || item.awayLogo ? (
-                <Image
-                  source={{ uri: item.strAwayTeamBadge ?? item.awayBadge ?? item.awayLogo }}
-                  style={styles.teamLogo}
-                />
-              ) : null}
-              <Text style={styles.teamName}>{item.strAwayTeam ?? item.awayTeam}</Text>
-            </View>
-          </View>
-
-          {/* Info */}
-          <View style={styles.info}>
-            <Text style={styles.sectionTitle}>Match Info</Text>
-            <Text style={styles.infoText}>🏆 League: {league}</Text>
-            <Text style={styles.infoText}>🏟 Stadium: {stadium}</Text>
-            <Text style={styles.infoText}>⚽ Sport: {sport}</Text>
-
-            <TouchableOpacity
-              onPress={toggleFavourite}
-              style={[styles.favBtn, { backgroundColor: isFav ? '#ff4444' : '#1e90ff' }]}>
-              <Text style={styles.favBtnText}>
-                {isFav ? 'Remove from Favourites' : 'Add to Favourites'}
-              </Text>
-            </TouchableOpacity>
-
-            {item.strDescriptionEN ? (
-              <>
-                <Text style={styles.sectionTitle}>Overview</Text>
-                <Text style={styles.descText}>{item.strDescriptionEN}</Text>
-              </>
-            ) : null}
-
-            {item.strVideo ? (
-              <>
-                <Text style={styles.sectionTitle}>Highlights</Text>
-                <TouchableOpacity
-                  onPress={() => openVideo(item.strVideo)}
-                  style={styles.videoBtn}>
-                  <Text style={styles.videoBtnText}>Watch on YouTube 🎬</Text>
-                </TouchableOpacity>
-              </>
-            ) : null}
-          </View>
-        </View>
-      </View>
-
-      {/* Meta below the card */}
-      <View style={styles.meta}>
-        <Text style={styles.metaText}>Match ID: {idKey}</Text>
-        {item.strStatus && <Text style={styles.metaText}>Status: {item.strStatus}</Text>}
-      </View>
+          ))}
+        </ScrollView>
+      </Animated.View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f6f7fb' },
-
-  // center content vertically & horizontally
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 28,
-    paddingHorizontal: 12,
+  header: {
+    paddingTop: 60,
+    paddingBottom: 40,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    elevation: 5,
   },
-  /* fallback header styling (solid / two-tone look) */
-  headerFallback: {
-    width: '100%',
-    padding: 18,
-    paddingBottom: 14,
-    backgroundColor: '#1e3c72',
-    alignItems: 'center',
-  },
-  headerTitle: { color: '#fff', fontSize: 20, fontWeight: '700' },
-  headerSub: { color: '#e6eefc', marginTop: 6 },
-
-  /* Card container that centers the card */
-  cardContainer: {
-    width: '100%',
-    alignItems: 'center',
-    marginTop: 12,
-    marginBottom: 12,
-  },
-  card: {
-    width: '96%',
-    maxWidth: 820,
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 20,
-    // Shadow for iOS
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.14,
-    shadowRadius: 20,
-    // Elevation for Android
-    elevation: 12,
-    // subtle border for contrast
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.04)',
-  },
-  // new card header inside the white card
-  cardHeader: {
-    backgroundColor: '#eaf2ff',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    marginBottom: 12,
-    alignItems: 'center',
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1e3c72',
+  headerTitle: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    color: 'white',
     textAlign: 'center',
   },
-  cardSubtitle: {
-    fontSize: 12,
-    color: '#4a6fae',
-    marginTop: 4,
+  card: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 20,
+    marginTop: -20,
+    width: '90%',
+    alignSelf: 'center',
+    elevation: 4,
   },
-
-  teamsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: 8,
-    alignItems: 'center',
-    marginBottom: 6,
+  logo: {
+    width: 120,
+    height: 120,
+    alignSelf: 'center',
+    marginBottom: 10,
   },
-  team: { alignItems: 'center', width: 120 },
-  teamLogo: { width: 90, height: 90, resizeMode: 'contain', marginBottom: 8 },
-  teamName: { fontWeight: '600', textAlign: 'center' },
-  vs: { alignItems: 'center' },
-  vsText: { fontSize: 14, color: '#666' },
-  scoreText: { fontSize: 18, fontWeight: '700', marginTop: 6 },
-
-  info: { paddingTop: 12 },
-  sectionTitle: { fontSize: 18, fontWeight: '700', marginBottom: 8 },
-  infoText: { fontSize: 15, marginBottom: 6 },
-  favBtn: {
-    padding: 12,
-    borderRadius: 10,
-    marginTop: 14,
-    alignItems: 'center',
+  scoreText: {
+    fontSize: 30,
+    textAlign: 'center',
+    fontWeight: 'bold',
+    marginVertical: 10,
   },
-  favBtnText: { color: '#fff', fontWeight: '700' },
-  descText: { color: '#444', lineHeight: 20 },
-  videoBtn: {
-    backgroundColor: '#ffcc00',
-    padding: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginTop: 8,
+  label: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 10,
+    textAlign: 'center',
   },
-  videoBtnText: { fontWeight: '700' },
-  meta: { paddingHorizontal: 20, paddingTop: 18 },
-  metaText: { color: '#666', marginTop: 6 },
+  value: {
+    fontSize: 18,
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  section: {
+    backgroundColor: '#f9f9f9',
+    marginTop: 20,
+    borderRadius: 12,
+    padding: 15,
+    marginHorizontal: 20,
+  },
+  sectionTitle: { fontSize: 20, fontWeight: '600' },
+  sectionValue: {
+    fontSize: 16,
+    color: '#777',
+    marginTop: 5,
+  },
 });
