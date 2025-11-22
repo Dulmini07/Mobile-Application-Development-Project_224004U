@@ -3,7 +3,7 @@ import { addFavourite, removeFavourite, RootState } from '@/src/store';
 import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Text, View } from 'react-native';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -22,22 +22,17 @@ export default function HomeScreen() {
     const fetchMatches = async () => {
       try {
         setLoading(true);
-        // example league id used in instructions (replace id if you want another league)
         const res = await fetch(
           'https://www.thesportsdb.com/api/v1/json/3/eventsnextleague.php?id=4328'
         );
         const json = await res.json();
         const events = json?.events ?? [];
         if (!mounted) return;
-        // map to simple shape for MatchCard
         const mapped = events.map((e: any) => ({
           id: e.idEvent,
           title: e.strEvent,
           image: e.strThumb ?? e.strBadge ?? 'https://via.placeholder.com/400x200?text=Match',
-          time:
-            e.dateEvent && e.strTime
-              ? `${e.dateEvent} ${e.strTime}`
-              : e.strTime ?? e.dateEvent ?? 'TBD',
+          time: e.dateEvent && e.strTime ? `${e.dateEvent} ${e.strTime}` : e.strTime ?? e.dateEvent ?? 'TBD',
           score:
             e.intHomeScore != null && e.intAwayScore != null
               ? `${e.intHomeScore} - ${e.intAwayScore}`
@@ -47,7 +42,6 @@ export default function HomeScreen() {
         setMatches(mapped);
       } catch (e: any) {
         setError(e?.message ?? 'Failed to load matches');
-        Alert.alert('Error', e?.message ?? 'Failed to load matches');
       } finally {
         setLoading(false);
       }
@@ -103,7 +97,8 @@ export default function HomeScreen() {
             isFav={favourites.some((m) => m.id === item.id)}
             onFavourite={() => toggleFavourite(item)}
             onPress={() =>
-              router.push({ pathname: '/details/[id]', params: { id: item.id } })
+              // pass the full item so Details can render without extra fetch
+              router.push({ pathname: '/details/[id]', params: item })
             }
           />
         )}

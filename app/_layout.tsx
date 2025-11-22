@@ -1,3 +1,4 @@
+import { ThemeProvider } from '@/src/context/ThemeContext';
 import { persistor, store } from '@/src/store';
 import { Stack } from 'expo-router';
 import React from 'react';
@@ -9,12 +10,14 @@ export default function RootLayout() {
   return (
     <Provider store={store}>
       <PersistGate loading={<ActivityIndicator size="large" color="#007AFF" />} persistor={persistor}>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="auth/login" />
-          <Stack.Screen name="auth/register" />
-          <Stack.Screen name="details/[id]" />
-        </Stack>
+        <ThemeProvider>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="auth/login" />
+            <Stack.Screen name="auth/register" />
+            <Stack.Screen name="details/[id]" />
+          </Stack>
+        </ThemeProvider>
       </PersistGate>
     </Provider>
   );

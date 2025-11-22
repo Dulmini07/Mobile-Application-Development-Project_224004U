@@ -11,14 +11,14 @@ import {
 } from 'react-native';
 
 import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTheme } from '@/src/context/ThemeContext';
 import { RootState } from '@/src/store';
 import { logout, setAuth, updateProfileImage } from '@/src/store/authSlice';
 import { useDispatch, useSelector } from 'react-redux';
 
 export default function ProfileScreen() {
   const dispatch = useDispatch();
-  const colorScheme = useColorScheme();
+  const { theme, toggleTheme } = useTheme();
   const user = useSelector((state: RootState) => state.auth.user);
 
   const [modalVisible, setModalVisible] = useState(false);
@@ -26,8 +26,8 @@ export default function ProfileScreen() {
   const [editEmail, setEditEmail] = useState(user?.email);
 
   const themeStyles = {
-    text: { color: Colors[colorScheme].text },
-    cardBg: { backgroundColor: Colors[colorScheme].tint },
+    text: { color: Colors[theme].text },
+    cardBg: { backgroundColor: Colors[theme].tint },
   };
 
   // === PICK IMAGE FROM GALLERY OR CAMERA ===
@@ -68,8 +68,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: Colors[colorScheme].background }]}>
-
+    <View style={[styles.container, { backgroundColor: Colors[theme].background }]}>
       {/* Avatar */}
       <TouchableOpacity onPress={handlePickImage}>
         <Image
@@ -171,6 +170,12 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
+      {/* Theme selector */}
+      <Text style={[styles.sectionTitle, themeStyles.text]}>Theme</Text>
+      <TouchableOpacity style={[styles.themeBtn]} onPress={() => toggleTheme()}>
+        <Text style={styles.themeText}>Switch to {theme === 'light' ? 'Dark' : 'Light'} Mode</Text>
+      </TouchableOpacity>
+
     </View>
   );
 }
@@ -250,4 +255,18 @@ const styles = StyleSheet.create({
 
   cancelBtn: { fontSize: 16, color: "#ff3b30", fontWeight: "bold" },
   saveBtn: { fontSize: 16, color: "#1e90ff", fontWeight: "bold" },
+
+  themeBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#ddd',
+  },
+  themeActive: {
+    backgroundColor: '#1e90ff',
+  },
+  themeText: {
+    color: '#000',
+    fontWeight: '600',
+  },
 });
