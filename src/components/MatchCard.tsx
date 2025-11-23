@@ -1,8 +1,8 @@
 import { Feather } from '@expo/vector-icons';
 import React from 'react';
-import { Image, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-export default function MatchCard({ item, onPress, onFavourite, onToggleFavourite, isFav }: any) {
+export default function MatchCard({ item, onPress, onFavourite, onToggleFavourite, isFav, status }: any) {
   const handleFav = () => {
     // prefer a single handler
     if (onToggleFavourite) return onToggleFavourite();
@@ -12,32 +12,21 @@ export default function MatchCard({ item, onPress, onFavourite, onToggleFavourit
   return (
     <TouchableOpacity
       onPress={onPress}
-      style={{
-        backgroundColor: '#f8f8f8',
-        borderRadius: 10,
-        marginBottom: 20,
-        overflow: 'hidden',
-        elevation: 2,
-      }}
+      style={styles.card}
       activeOpacity={0.9}
     >
-      <Image source={{ uri: item.image }} style={{ width: '100%', height: 150 }} />
-      <View
-        style={{
-          padding: 10,
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}
-      >
-        <View style={{ flex: 1, paddingRight: 8 }}>
-          <Text style={{ fontSize: 18, fontWeight: 'bold' }}>{item.title}</Text>
-          {item.time ? (
-            <Text style={{ color: '#666', marginTop: 4 }}>{item.time}</Text>
-          ) : null}
-          {item.score ? (
-            <Text style={{ color: '#333', marginTop: 6, fontWeight: '600' }}>{item.score}</Text>
-          ) : null}
+      {/* status badge */}
+      {status ? (
+        <View style={[styles.badge, status === 'Active' ? styles.badgeActive : status === 'Upcoming' ? styles.badgeUpcoming : styles.badgePopular]}>
+          <Text style={styles.badgeText}>{status}</Text>
+        </View>
+      ) : null}
+
+      <Image source={{ uri: item.image }} style={styles.image} />
+      <View style={styles.row}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.title}>{item.title}</Text>
+          <Text style={styles.subtitle}>{item.time ?? item.score}</Text>
         </View>
         <TouchableOpacity
           onPress={(e: any) => {
@@ -54,3 +43,30 @@ export default function MatchCard({ item, onPress, onFavourite, onToggleFavourit
     </TouchableOpacity>
   );
 }
+
+const styles = StyleSheet.create({
+  card: {
+    backgroundColor: '#f8f8f8',
+    borderRadius: 10,
+    marginBottom: 20,
+    overflow: 'hidden',
+    elevation: 2,
+  },
+  image: { width: '100%', height: 150 },
+  row: { padding: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  title: { fontSize: 18, fontWeight: '700' },
+  subtitle: { color: '#555', marginTop: 4 },
+  badge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    zIndex: 10,
+  },
+  badgeText: { color: '#fff', fontWeight: '700', fontSize: 12 },
+  badgeActive: { backgroundColor: '#28a745' },
+  badgeUpcoming: { backgroundColor: '#ffc107' },
+  badgePopular: { backgroundColor: '#6f42c1' },
+});

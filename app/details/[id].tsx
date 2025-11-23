@@ -1,228 +1,259 @@
+import { fetchEventDetails, fetchPlayers } from '@/src/services/sportsApi';
 import { addFavourite, removeFavourite } from '@/src/store';
 import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
 import { useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useRef } from 'react';
-import {
-  Animated,
-  Image,
-  Linking,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-// replace static import with runtime require + fallback
-let LinearGradient: any;
-try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  LinearGradient = require('expo-linear-gradient').LinearGradient;
-} catch {
-  // fallback: simple wrapper that renders a View with same style children
-  // keeps UI working if expo-linear-gradient isn't installed
-  // eslint-disable-next-line react/display-name
-  LinearGradient = ({ children, style }: any) => {
-    const { View } = require('react-native');
-    return <View style={style}>{children}</View>;
-  };
-}
-
-export default function MatchDetails() {
+export default function DetailsScreen() {
   const params = useLocalSearchParams() as Record<string, any>;
-  const { id, title, image, score, time } = params;
+  const id = (params?.id ?? params?.idEvent ?? params?.eventId) as string | undefined;
 
-  // redux hooks for favourites
+  const [details, setDetails] = useState<any>(null);
+  const [players, setPlayers] = useState<any[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  // local tab state (Overview | Stats | Players)
+  const [activeTab, setActiveTab] = useState<'Overview' | 'Stats' | 'Players'>('Overview');
+
   const dispatch = useAppDispatch();
-  const favourites = useAppSelector((s) => s.favourites.items ?? []);
-  const idKey = id ?? title ?? image;
-  const isFav = favourites.some((f: any) => (f.idEvent ?? f.id ?? f.title) === idKey);
-
-  // dummy data (local only)
-  const dummyHighlights = [
-    { id: 'h1', title: 'Match Highlights 1', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-    { id: 'h2', title: 'Top Goal', url: 'https://www.youtube.com/watch?v=3JZ_D3ELwOQ' },
-  ];
-
-  const dummyPlayers = [
-    { id: 'p1', name: 'A. Silva', position: 'Forward', number: 9, nationality: 'BRA' },
-    { id: 'p2', name: 'J. Smith', position: 'Midfielder', number: 8, nationality: 'ENG' },
-    { id: 'p3', name: 'L. Gomez', position: 'Defender', number: 4, nationality: 'ESP' },
-  ];
+  const favs = useAppSelector((s) => s.favourites.items ?? []);
+  const idKey = id ?? details?.idEvent ?? String(details?.idEvent ?? '');
+  const isFav = favs.some((x: any) => String(x.id) === String(idKey));
 
   const toggleFavourite = () => {
-    // ensure payload matches FavouriteItem (includes `id`)
-    const payload = { id: idKey, idEvent: idKey, title, image, score, time };
+    if (!details) return;
+
+    // build normalized favourite item so it matches Home's shape
+    const banner = details?.strThumb ?? details?.strBanner ?? details?.strThumbHome ?? details?.strThumbAway ?? null;
+    const timeStr = `${details?.dateEvent ?? details?.date ?? ''} ${details?.strTime ?? details?.time ?? ''}`.trim();
+    const scoreStr =
+      details?.intHomeScore != null && details?.intAwayScore != null
+        ? `${details.intHomeScore} - ${details.intAwayScore}`
+        : details?.score ?? undefined;
+
+    const favItem = {
+      id: idKey,
+      title: details?.strEvent ?? details?.title ?? `${details?.strHomeTeam ?? ''} vs ${details?.strAwayTeam ?? ''}`,
+      image: banner,
+      time: timeStr,
+      score: scoreStr,
+      raw: details,
+      status: details?.status ?? 'Popular',
+    };
+
     if (isFav) dispatch(removeFavourite(idKey));
-    else dispatch(addFavourite(payload));
+    else dispatch(addFavourite(favItem));
   };
 
-  // Fade + Slide Animations
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(40)).current;
-
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [fadeAnim, slideAnim]);
+    let mounted = true;
+
+    (async () => {
+      try {
+        setLoading(true);
+
+        // If caller passed a full item, use it as base (immediate header display)
+        const passedItem = params && (params.strEvent || params.title || params.idEvent || params.id)
+          ? (params as any)
+          : null;
+
+        // fetch details if we have an id
+        const fetched = id ? await fetchEventDetails(id) : null;
+
+        if (!mounted) return;
+
+        // Merge: prefer passedItem values for header fields (strEvent/title, date/time, image)
+        // but keep other fetched properties (description, league, venue, etc.)
+        const merged = {
+          // start with fetched data (if any)
+          ...(fetched ?? {}),
+          // then overlay passedItem so passed fields overwrite fetched header fields
+          ...(passedItem ? {
+            // prefer common header props if present in passedItem
+            strEvent: passedItem.strEvent ?? passedItem.title ?? (fetched?.strEvent),
+            strThumb: passedItem.image ?? fetched?.strThumb,
+            strBanner: passedItem.image ?? fetched?.strBanner,
+            strTime: passedItem.time ?? fetched?.strTime,
+            dateEvent: passedItem.date ?? fetched?.dateEvent ?? passedItem.dateEvent,
+            // keep any other passedItem fields as well
+            ...passedItem,
+          } : {}),
+        };
+
+        setDetails(merged);
+
+        // fetch players for home team if available from merged/fetched
+        const homeTeamId = merged?.idHomeTeam ?? merged?.idTeamHome ?? merged?.idHomeTeam;
+        const p = homeTeamId ? await fetchPlayers(String(homeTeamId)) : [];
+        if (!mounted) return;
+        setPlayers(p);
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.log('Error loading details:', e);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [id, JSON.stringify(params)]);
+
+  if (loading) return <ActivityIndicator style={{ marginTop: 50 }} size="large" />;
+
+  // use merged details (which now prefers passed header fields)
+  const banner = details?.strThumb ?? details?.strBanner ?? details?.strThumbHome ?? null;
+  const title = details?.strEvent ?? details?.title ?? `${details?.strHomeTeam ?? ''} vs ${details?.strAwayTeam ?? ''}`;
+  const dateText = `${details?.dateEvent ?? details?.date ?? ''} ${details?.strTime ?? details?.time ?? ''}`.trim();
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: '#fff' }}>
-      {/* HEADER WITH GRADIENT */}
-      <LinearGradient colors={['#0047AB', '#002F6C']} style={styles.header}>
-        <Text style={styles.headerTitle}>{title ?? 'Match Details'}</Text>
-      </LinearGradient>
-
-      {/* ANIMATED MAIN CARD */}
-      <Animated.View
-        style={[
-          styles.card,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
-          },
-        ]}>
-        {/* Team Logo */}
-        {image ? (
-          <Image source={{ uri: image }} style={styles.logo} />
+    <View style={{ flex: 1 }}>
+      {/* Header */}
+      <View style={styles.header}>
+        {banner ? (
+          <Image source={{ uri: banner }} style={styles.banner} />
         ) : (
-          <View
-            style={[
-              styles.logo,
-              { backgroundColor: '#eee', borderRadius: 12 },
-            ]}
-          />
+          <View style={[styles.banner, { backgroundColor: '#e6e6e6' }]} />
         )}
+        <Text style={styles.title}>{title}</Text>
+        <Text style={styles.date}>{dateText}</Text>
 
-        <Text style={styles.scoreText}>{score ?? 'Match Soon'}</Text>
-
-        <Text style={styles.label}>Match Time</Text>
-        <Text style={styles.value}>{time ?? 'Not Available'}</Text>
-
-        {/* Add / Remove Favourite */}
-        <TouchableOpacity
-          onPress={toggleFavourite}
-          style={{
-            marginTop: 12,
-            backgroundColor: isFav ? '#ff4444' : '#1e90ff',
-            paddingVertical: 10,
-            borderRadius: 10,
-            alignItems: 'center',
-          }}>
-          <Text style={{ color: '#fff', fontWeight: '700' }}>
-            {isFav ? 'Remove from Favourites' : 'Add to Favourites'}
-          </Text>
+        <TouchableOpacity onPress={toggleFavourite} style={styles.favBtn}>
+          <Text style={{ color: 'white' }}>{isFav ? 'Remove Favourite' : 'Add Favourite'}</Text>
         </TouchableOpacity>
-      </Animated.View>
+      </View>
 
-      {/* Animated Section: Highlights */}
-      <Animated.View
-        style={[
-          styles.section,
-          {
-            opacity: fadeAnim,
-          },
-        ]}>
-        <Text style={styles.sectionTitle}>📺 Highlights</Text>
-        {dummyHighlights.map((h) => (
-          <TouchableOpacity key={h.id} onPress={() => Linking.openURL(h.url)} style={{ paddingVertical: 8 }}>
-            <Text style={{ color: '#1e90ff', fontWeight: '600' }}>{h.title}</Text>
+      {/* Tab Bar */}
+      <View style={styles.localTabRow}>
+        {(['Overview', 'Stats', 'Players'] as const).map((t) => (
+          <TouchableOpacity
+            key={t}
+            onPress={() => setActiveTab(t)}
+            style={[styles.localTabBtn, activeTab === t && styles.localTabActive]}
+          >
+            <Text style={[styles.localTabText, activeTab === t && styles.localTabTextActive]}>{t}</Text>
           </TouchableOpacity>
         ))}
-      </Animated.View>
+      </View>
 
-      {/* Players Section Placeholder */}
-      <Animated.View
-        style={[
-          styles.section,
-          {
-            opacity: fadeAnim,
-          },
-        ]}>
-        <Text style={styles.sectionTitle}>👥 Players</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
-          {dummyPlayers.map((p) => (
-            <View key={p.id} style={{ width: 140, marginRight: 12, alignItems: 'center' }}>
-              <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#eee', marginBottom: 8 }} />
-              <Text style={{ fontWeight: '700' }}>{p.name}</Text>
-              <Text style={{ color: '#666' }}>{p.position}</Text>
-              <Text style={{ color: '#999' }}>#{p.number} • {p.nationality}</Text>
-            </View>
-          ))}
+      {/* Tab Content */}
+      {activeTab === 'Overview' && (
+        <ScrollView style={styles.tabContent}>
+          <Text style={styles.sectionTitle}>Match Overview</Text>
+          <Text style={styles.desc}>{details?.strDescriptionEN ?? 'No description available.'}</Text>
+
+          {/* added: dummy overview paragraph */}
+          <Text style={[styles.desc, { marginTop: 12 }]}>
+            This match promises to deliver a thrilling and highly competitive contest, as both teams enter the fixture with impressive recent performances and strong momentum. Fans can expect an intense battle across all departments — batting, bowling, and fielding — with each side boasting match-winners capable of changing the course of the game at any moment. The top-order players from both teams have been in exceptional form, consistently scoring runs and building solid partnerships, while the middle-order units have shown the ability to accelerate under pressure.</Text>
         </ScrollView>
-      </Animated.View>
-    </ScrollView>
+      )}
+
+      {activeTab === 'Stats' && (
+        <ScrollView style={styles.tabContent}>
+          <Text style={styles.sectionTitle}>Statistics</Text>
+
+          <View style={styles.statCard}>
+            <Text>League</Text>
+            <Text style={styles.statValue}>{details?.strLeague ?? 'N/A'}</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <Text>Venue</Text>
+            <Text style={styles.statValue}>{details?.strVenue ?? 'N/A'}</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <Text>Country</Text>
+            <Text style={styles.statValue}>{details?.strCountry ?? 'N/A'}</Text>
+          </View>
+        </ScrollView>
+      )}
+
+      {activeTab === 'Players' && (
+        <ScrollView style={styles.tabContent}>
+          <Text style={styles.sectionTitle}>Players</Text>
+
+          {players.length === 0 ? (
+            <Text style={{ color: '#666' }}>Players not available</Text>
+          ) : (
+            <>
+              {players.map((p: any) => (
+                <View key={p.idPlayer} style={styles.playerCard}>
+                  {p.strCutout || p.strThumb ? (
+                    <Image source={{ uri: p.strCutout ?? p.strThumb }} style={styles.playerImg} />
+                  ) : (
+                    <View style={[styles.playerImg, { backgroundColor: '#eee' }]} />
+                  )}
+                  <View>
+                    <Text style={styles.playerName}>{p.strPlayer}</Text>
+                    <Text style={styles.playerPos}>{p.strPosition ?? p.strNationality}</Text>
+                  </View>
+                </View>
+              ))}
+            </>
+          )}
+        </ScrollView>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    paddingTop: 60,
-    paddingBottom: 40,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-    elevation: 5,
-  },
-  headerTitle: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: 'white',
-    textAlign: 'center',
-  },
-  card: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 20,
-    marginTop: -20,
-    width: '90%',
+  header: { paddingBottom: 10 },
+  banner: { width: '100%', height: 180 },
+  title: { fontSize: 24, fontWeight: 'bold', marginTop: 10, textAlign: 'center' },
+  date: { textAlign: 'center', color: 'gray' },
+
+  favBtn: {
+    backgroundColor: '#1e90ff',
+    padding: 10,
+    borderRadius: 10,
     alignSelf: 'center',
-    elevation: 4,
+    marginTop: 10,
   },
-  logo: {
-    width: 120,
-    height: 120,
-    alignSelf: 'center',
+
+  localTabRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  localTabBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  localTabActive: {
+    borderBottomWidth: 2,
+    borderBottomColor: '#1e90ff',
+  },
+  localTabText: { color: '#666' },
+  localTabTextActive: { color: '#1e90ff', fontWeight: '700' },
+
+  tabContent: { padding: 15 },
+  sectionTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 10 },
+  desc: { fontSize: 16, opacity: 0.7 },
+
+  statCard: {
+    backgroundColor: '#f5f5f5',
+    padding: 15,
+    borderRadius: 8,
     marginBottom: 10,
   },
-  scoreText: {
-    fontSize: 30,
-    textAlign: 'center',
-    fontWeight: 'bold',
-    marginVertical: 10,
+  statValue: { fontSize: 18, fontWeight: 'bold' },
+
+  playerCard: {
+    flexDirection: 'row',
+    marginBottom: 15,
+    backgroundColor: '#fff',
+    padding: 10,
+    borderRadius: 10,
+    elevation: 2,
+    alignItems: 'center',
   },
-  label: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 10,
-    textAlign: 'center',
-  },
-  value: {
-    fontSize: 18,
-    textAlign: 'center',
-    fontWeight: '600',
-  },
-  section: {
-    backgroundColor: '#f9f9f9',
-    marginTop: 20,
-    borderRadius: 12,
-    padding: 15,
-    marginHorizontal: 20,
-  },
-  sectionTitle: { fontSize: 20, fontWeight: '600' },
-  sectionValue: {
-    fontSize: 16,
-    color: '#777',
-    marginTop: 5,
-  },
+  playerImg: { width: 60, height: 60, marginRight: 10, borderRadius: 6 },
+  playerName: { fontSize: 18, fontWeight: 'bold' },
+  playerPos: { fontSize: 14, color: 'gray' },
 });

@@ -1,104 +1,124 @@
-import React from 'react';
-import { View, Image, StyleSheet } from 'react-native';
-import ParallaxScrollView from '@/src/components/parallax-scroll-view';
-import { ThemedText } from '@/src/components/themed-text';
-import { ExternalLink } from '@/src/components/external-link';
+import ImageWithFallback from "@/src/components/ui/image-with-fallback";
+import React, { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  FlatList,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 export default function ExploreScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#fff', dark: '#111' }}
-      headerImage={
-        <Image
-          source={{
-            uri: 'https://images.unsplash.com/photo-1607990281513-2c110a25bd8c?auto=format&fit=crop&w=1350&q=80',
-          }}
-          style={styles.headerImage}
-        />
-      }
-    >
-      <View style={styles.contentContainer}>
-        <ThemedText style={styles.heading}>Explore Sports & Lifestyle</ThemedText>
-        <ThemedText style={styles.subHeading}>
-          Discover trending matches, top players, and inspiring moments in sports.
-        </ThemedText>
+  const [teams, setTeams] = useState<any[]>([]);
+  const [filtered, setFiltered] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
-        <View style={styles.card}>
-          <Image
-            source={{ uri: 'https://upload.wikimedia.org/wikipedia/en/2/29/Sri_Lanka_Cricket_logo.svg' }}
-            style={styles.cardImage}
-          />
-          <ThemedText style={styles.cardTitle}>Sri Lanka Cricket Team</ThemedText>
-          <ThemedText>Champion spirit and unity on the field 🇱🇰</ThemedText>
-          <ExternalLink
-            url="https://www.espncricinfo.com/team/sri-lanka-8"
-            title="View on ESPN CricInfo"
-          />
-        </View>
+  const fetchTeams = async () => {
+    try {
+      const res = await fetch(
+        "https://www.thesportsdb.com/api/v1/json/3/search_all_teams.php?l=English%20Premier%20League"
+      );
+      const data = await res.json();
+      setTeams(data.teams || []);
+      setFiltered(data.teams || []);
+      setLoading(false);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.log("API Error:", error);
+      setLoading(false);
+    }
+  };
 
-        <View style={styles.card}>
-          <Image
-            source={{ uri: 'https://upload.wikimedia.org/wikipedia/en/3/3a/Cricket_Australia_logo.svg' }}
-            style={styles.cardImage}
-          />
-          <ThemedText style={styles.cardTitle}>Australia Cricket Team</ThemedText>
-          <ThemedText>Powerful batting and strategic gameplay 🏏</ThemedText>
-          <ExternalLink
-            url="https://www.espncricinfo.com/team/australia-2"
-            title="View on ESPN CricInfo"
-          />
-        </View>
+  useEffect(() => {
+    fetchTeams();
+  }, []);
 
-        <View style={styles.card}>
-          <Image
-            source={{ uri: 'https://upload.wikimedia.org/wikipedia/en/5/5c/Federer_Logo.svg' }}
-            style={styles.cardImage}
-          />
-          <ThemedText style={styles.cardTitle}>Roger Federer</ThemedText>
-          <ThemedText>Elegance, skill, and legacy in tennis 🎾</ThemedText>
-          <ExternalLink
-            url="https://www.atptour.com/en/players/roger-federer/f324/overview"
-            title="View Player Profile"
-          />
-        </View>
+  const filterTeams = (text: string) => {
+    setSearch(text);
+    if (!text) return setFiltered(teams);
+
+    const results = teams.filter((t: any) =>
+      String(t.strTeam).toLowerCase().includes(text.toLowerCase())
+    );
+    setFiltered(results);
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#1e90ff" />
       </View>
-    </ParallaxScrollView>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      {/* Header */}
+      <Text style={styles.title}>Explore Teams</Text>
+
+      {/* Search Bar */}
+      <TextInput
+        style={styles.search}
+        placeholder="Search teams..."
+        value={search}
+        onChangeText={filterTeams}
+      />
+
+      {/* Grid List */}
+      <FlatList
+        data={filtered}
+        keyExtractor={(item) => String(item.idTeam)}
+        numColumns={2}
+        columnWrapperStyle={{ justifyContent: "space-between" }}
+        renderItem={({ item }) => {
+          // build ordered list of possible images (PNG-first, then banner/fanart, then converted svg->png)
+          const logoCandidates = [
+            item?.strTeamLogo,
+            item?.strTeamBanner,
+            item?.strTeamFanart1,
+            item?.strTeamJersey,
+            // try converting SVG url to PNG if possible
+            item?.strTeamBadge
+              ? String(item.strTeamBadge).replace(".svg", ".png")
+              : undefined,
+          ];
+          return (
+            <TouchableOpacity style={styles.card} activeOpacity={0.8}>
+              <ImageWithFallback uris={logoCandidates} style={styles.logo} />
+              <Text style={styles.teamName}>{item.strTeam}</Text>
+              <Text style={styles.smallText}>{item.strCountry}</Text>
+            </TouchableOpacity>
+          );
+        }}
+        contentContainerStyle={{ paddingBottom: 30 }}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  headerImage: {
-    width: '100%',
-    height: 200,
-    resizeMode: 'cover',
-  },
-  contentContainer: {
-    padding: 20,
-  },
-  heading: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  subHeading: {
-    marginBottom: 20,
-    fontSize: 16,
+  container: { flex: 1, padding: 20, backgroundColor: "#ffffff" },
+  title: { fontSize: 26, fontWeight: "bold", marginBottom: 15 },
+  search: {
+    backgroundColor: "#f0f0f0",
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 15,
   },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 20,
+    width: "48%",
+    backgroundColor: "#fff",
+    paddingVertical: 15,
+    borderRadius: 12,
+    marginBottom: 18,
+    alignItems: "center",
     elevation: 3,
   },
-  cardImage: {
-    width: '100%',
-    height: 120,
-    borderRadius: 10,
-    marginBottom: 10,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
+  logo: { width: 60, height: 60, marginBottom: 10 },
+  teamName: { fontSize: 16, fontWeight: "600", textAlign: "center" },
+  smallText: { fontSize: 12, color: "#555" },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
 });

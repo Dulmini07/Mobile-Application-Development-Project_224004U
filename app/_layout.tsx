@@ -1,10 +1,9 @@
 import SplashScreen from '@/src/components/SplashScreen';
-import { SplashScreen as ExpoSplashScreen } from 'expo-router';
 import { ThemeProvider } from '@/src/context/ThemeContext';
 import { persistor, store } from '@/src/store';
-import { Stack } from 'expo-router';
+import { SplashScreen as ExpoSplashScreen, Stack } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View, Modal } from 'react-native';
+import { ActivityIndicator, Modal, StyleSheet, View } from 'react-native';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 

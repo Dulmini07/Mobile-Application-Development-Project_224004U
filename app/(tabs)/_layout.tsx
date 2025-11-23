@@ -7,6 +7,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { HapticTab } from '@/src/components/haptic-tab';
 import { IconSymbol } from '@/src/components/ui/icon-symbol';
 import { RootState } from '@/src/store';
+import { Feather } from '@expo/vector-icons';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -30,21 +31,21 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="house.fill" color={color} />
-          ),
-        }}
-      />
+  name="index"
+  options={{
+    title: "Home",
+   tabBarIcon: ({ color }) => (
+      <Feather name="home" size={26} color={color} />
+    ),
+  }}
+/>
 
       <Tabs.Screen
         name="explore"
         options={{
           title: 'Explore',
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="paperplane.fill" color={color} />
+             <Feather name="search" size={26} color={color} />
           ),
         }}
       />
@@ -54,7 +55,7 @@ export default function TabLayout() {
         options={{
           title: 'Favourites',
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="star.fill" color={color} />
+             <Feather name="heart" size={26} color={color} />
           ),
         }}
       />
@@ -64,7 +65,7 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="person.fill" color={color} />
+             <Feather name="user" size={26} color={color} />
           ),
         }}
       />

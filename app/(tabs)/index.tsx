@@ -28,17 +28,35 @@ export default function HomeScreen() {
         const json = await res.json();
         const events = json?.events ?? [];
         if (!mounted) return;
-        const mapped = events.map((e: any) => ({
-          id: e.idEvent,
-          title: e.strEvent,
-          image: e.strThumb ?? e.strBadge ?? 'https://via.placeholder.com/400x200?text=Match',
-          time: e.dateEvent && e.strTime ? `${e.dateEvent} ${e.strTime}` : e.strTime ?? e.dateEvent ?? 'TBD',
-          score:
-            e.intHomeScore != null && e.intAwayScore != null
-              ? `${e.intHomeScore} - ${e.intAwayScore}`
-              : 'TBD',
-          raw: e,
-        }));
+
+        const today = new Date().toISOString().slice(0, 10); // 'YYYY-MM-DD'
+        // map to simple shape for MatchCard and add status
+        const mapped = events.map((e: any) => {
+          const date = e.dateEvent ?? '';
+          const status =
+            date
+              ? date > today
+                ? 'Upcoming'
+                : date === today
+                ? 'Active'
+                : 'Popular'
+              : 'Popular';
+          return {
+            id: e.idEvent,
+            title: e.strEvent,
+            image: e.strThumb ?? e.strBadge ?? 'https://via.placeholder.com/400x200?text=Match',
+            time:
+              e.dateEvent && e.strTime
+                ? `${e.dateEvent} ${e.strTime}`
+                : e.strTime ?? e.dateEvent ?? 'TBD',
+            score:
+              e.intHomeScore != null && e.intAwayScore != null
+                ? `${e.intHomeScore} - ${e.intAwayScore}`
+                : 'TBD',
+            raw: e,
+            status,
+          };
+        });
         setMatches(mapped);
       } catch (e: any) {
         setError(e?.message ?? 'Failed to load matches');
@@ -81,7 +99,7 @@ export default function HomeScreen() {
       
       {/* 🔥 Logged-in username at top */}
       <Text style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 10 }}>
-        Welcome, {user?.name || 'Guest'}
+        Welcome, {user?.name ?? user?.username ?? 'Guest'}
       </Text>
 
       <Text style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 15 }}>
@@ -94,6 +112,7 @@ export default function HomeScreen() {
         renderItem={({ item }) => (
           <MatchCard
             item={item}
+            status={item.status} // { changed code }
             isFav={favourites.some((m) => m.id === item.id)}
             onFavourite={() => toggleFavourite(item)}
             onPress={() =>

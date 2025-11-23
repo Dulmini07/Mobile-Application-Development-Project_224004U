@@ -141,7 +141,9 @@ export default function ProfileScreen() {
       <Modal visible={modalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, themeStyles.cardBg]}>
-            <Text style={[styles.modalTitle, themeStyles.text]}>Edit Profile</Text>
+            <Text style={[styles.modalTitle, themeStyles.text]}>
+              Edit Profile
+            </Text>
 
             <TextInput
               value={editName}
@@ -254,7 +256,7 @@ const styles = StyleSheet.create({
   },
 
   cancelBtn: { fontSize: 16, color: "#ff3b30", fontWeight: "bold" },
-  saveBtn: { fontSize: 16, color: "#1e90ff", fontWeight: "bold" },
+  saveBtn: { fontSize: 16, color: "#061422ff", fontWeight: "bold" },
 
   themeBtn: {
     paddingVertical: 6,
@@ -268,5 +270,26 @@ const styles = StyleSheet.create({
   themeText: {
     color: '#000',
     fontWeight: '600',
+  },
+
+  // Floating Save button styles
+  floatingSave: {
+    position: 'absolute',
+    right: 20,
+    bottom: 28,
+    backgroundColor: '#1e90ff',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 24,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+  },
+  floatingSaveText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 14,
   },
 });
