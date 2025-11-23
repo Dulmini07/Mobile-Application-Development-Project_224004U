@@ -1,4 +1,4 @@
-import ImageWithFallback from "@/src/components/ui/image-with-fallback";
+import ImageOrSvg from '@/src/components/ui/ImageOrSvg';
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -18,8 +18,9 @@ export default function ExploreScreen() {
 
   const fetchTeams = async () => {
     try {
+      // use NBA teams endpoint (PNG logos) for reliable images
       const res = await fetch(
-        "https://www.thesportsdb.com/api/v1/json/3/search_all_teams.php?l=English%20Premier%20League"
+        "https://www.thesportsdb.com/api/v1/json/3/search_all_teams.php?l=NBA"
       );
       const data = await res.json();
       setTeams(data.teams || []);
@@ -74,20 +75,32 @@ export default function ExploreScreen() {
         numColumns={2}
         columnWrapperStyle={{ justifyContent: "space-between" }}
         renderItem={({ item }) => {
-          // build ordered list of possible images (PNG-first, then banner/fanart, then converted svg->png)
-          const logoCandidates = [
-            item?.strTeamLogo,
-            item?.strTeamBanner,
-            item?.strTeamFanart1,
-            item?.strTeamJersey,
-            // try converting SVG url to PNG if possible
-            item?.strTeamBadge
-              ? String(item.strTeamBadge).replace(".svg", ".png")
-              : undefined,
-          ];
+          // debug: print whole item to inspect which fields are present
+          console.log('Explore item raw:', item);
+
+          // Try all common field names the API may return (variant coverage)
+          const candidate =
+            item?.strTeamBadge ||
+            item?.strBadge ||
+            item?.strTeamLogo ||
+            item?.strLogo ||
+            item?.strTeamFanart1 ||
+            item?.strFanart1 ||
+            item?.strTeamBanner ||
+            item?.strBanner ||
+            null;
+
+          const finalUri =
+            candidate ||
+            // fallback: generate a PNG avatar with team initials (always returns PNG)
+            `https://ui-avatars.com/api/?name=${encodeURIComponent(item?.strTeam ?? 'Team')}&background=0D47A1&color=fff&size=120`;
+
+          // debug: show chosen finalUri
+          console.log('logo urls', item?.strBadge ?? item?.strTeamBadge, item?.strLogo ?? item?.strTeamLogo, item?.strFanart1 ?? item?.strTeamFanart1, 'final:', finalUri);
+
           return (
             <TouchableOpacity style={styles.card} activeOpacity={0.8}>
-              <ImageWithFallback uris={logoCandidates} style={styles.logo} />
+              <ImageOrSvg uri={finalUri} style={styles.logo} placeholder="https://via.placeholder.com/120" />
               <Text style={styles.teamName}>{item.strTeam}</Text>
               <Text style={styles.smallText}>{item.strCountry}</Text>
             </TouchableOpacity>
