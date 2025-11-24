@@ -261,7 +261,7 @@ export default function ProfileScreen() {
               <Feather name="sun" size={34} color={theme === 'dark' ? '#999' : '#666'} />
             </View>
             <View style={styles.toggleIconRight}>
-              <Feather name="moon" size={34} color={theme === 'dark' ? '#fff' : '#666'} />
+              <Feather name="moon" size={34} color={theme === 'dark' ? '#3d3838ff' : '#666'} />
             </View>
             <Animated.View
               style={[

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Dimensions, Image, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Dimensions, Image, SafeAreaView, StyleSheet, View } from 'react-native';
 const { width } = Dimensions.get('window');
 
 // resolve expo-linear-gradient at runtime and fallback to View if missing
@@ -26,18 +26,20 @@ export default function SplashScreen() {
 	}, []);
 
 	useEffect(() => {
-		Animated.loop(
-			Animated.sequence([
-				Animated.timing(pulse, { toValue: 1, duration: 700, useNativeDriver: false }),
-				Animated.timing(pulse, { toValue: 0, duration: 700, useNativeDriver: false }),
-			])
-		).start();
+		// single fill animation: start near 1% and animate to 100% over 4s
+		pulse.setValue(0.01);
+		Animated.timing(pulse, {
+			toValue: 1,
+			duration: 8000,
+			useNativeDriver: false,
+		}).start();
 	}, [pulse]);
 
 	// loader width interpolation (semi-rectangle center)
 	const loaderWidth = pulse.interpolate({
 		inputRange: [0, 1],
-		outputRange: [width * 0.25, width * 0.6],
+		// map animated value to ~1% .. 99% of screen width
+		outputRange: [width * 0.01, width * 0.99],
 	});
 
 	return (
@@ -45,7 +47,7 @@ export default function SplashScreen() {
 			<SafeAreaView style={styles.safe}>
 				<View style={styles.logoWrap}>
 					{/* use bundled logo at src/components/ui/logo.png */}
-					<Image source={require('./ui/logo.png')} style={styles.logo} resizeMode="contain" />
+					<Image source={require('./ui/logos.png')} style={styles.logo} resizeMode="contain" />
 					{/* <Text style={styles.title}>SPORTIFY</Text>
 					<Text style={styles.subtitle}>CELEBRATE EVERY SCORE</Text> */}
 				</View>
@@ -63,7 +65,7 @@ const styles = StyleSheet.create({
 		flex: 1,
 		justifyContent: 'center',
 		alignItems: 'center',
-		backgroundColor: '#0f0520', // fallback if LinearGradient not available
+		backgroundColor: '#12121bff', // fallback if LinearGradient not available
 	},
 	safe: { flex: 1, width: '100%', justifyContent: 'center', alignItems: 'center' },
 	logoWrap: {
@@ -99,7 +101,7 @@ const styles = StyleSheet.create({
 	loader: {
 		height: 14,
 		borderRadius: 999,
-		backgroundColor: '#9df7ff',
+		backgroundColor: '#2c92ffff',
 		opacity: 0.95,
 	},
 });
