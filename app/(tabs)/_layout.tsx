@@ -11,10 +11,21 @@ import { Feather } from '@expo/vector-icons';
 export default function TabLayout() {
   const colorScheme = useColorScheme();
 
-  // 🔥 Get user from Redux Auth
+  // Ensure vector icon fonts are loaded on startup to avoid "Font file for feather is empty" runtime errors
+  useEffect(() => {
+    try {
+      // some environments expose a loadFont method on icon components
+      (Feather as any).loadFont?.();
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('[APP] failed to call Feather.loadFont()', err);
+    }
+  }, []);
+
+  //  Get user from Redux Auth
   const user = useSelector((state: RootState) => state.auth.user);
 
-  // 🔥 Redirect to login if not logged in
+  // Redirect to login if not logged in
   useEffect(() => {
     if (!user) {
       router.replace('/auth/login');

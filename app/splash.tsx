@@ -1,6 +1,8 @@
+import { router } from 'expo-router';
 import * as SplashScreenAPI from 'expo-splash-screen';
 import React, { useEffect, useRef } from 'react';
 import { Animated, Dimensions, Easing, Image, SafeAreaView, StyleSheet, View } from 'react-native';
+
 const { width } = Dimensions.get('window');
 
 // resolve expo-linear-gradient at runtime and fallback to View if missing
@@ -17,53 +19,45 @@ try {
 	};
 }
 
-export default function SplashScreen() {
+export default function SplashRoute() {
 	const pulse = useRef(new Animated.Value(0)).current;
 
 	useEffect(() => {
-		// debug: ensure splash mounted on Android
-		// eslint-disable-next-line no-console
-		console.log('[SplashScreen] mounted');
-	}, []);
-
-	useEffect(() => {
-		// keep native splash visible until we explicitly hide it after the animation completes
+		// keep native splash visible until we explicitly hide it
 		// start just above 0 and slowly fill to 100% with a gentle easing and a long initial delay
 		pulse.setValue(0.01);
+
 		Animated.sequence([
-			Animated.delay(15000), // 15s static splash before the bar starts
+			Animated.delay(5000), // keep splash static for 5s (adjust as needed)
 			Animated.timing(pulse, {
 				toValue: 1,
-				duration: 120000, // slow 2-minute fill
+				duration: 12000, // slow 12-second fill (adjust as needed)
 				easing: Easing.out(Easing.quad),
 				useNativeDriver: false,
 			}),
 		]).start(async () => {
-			// hide the native splash AFTER the loader completes
+			// hide the native splash AFTER the loader completes, then navigate
 			try {
 				await SplashScreenAPI.hideAsync();
 			} catch (err) {
 				// eslint-disable-next-line no-console
-				console.warn('[SplashScreen] hideAsync failed', err);
+				console.warn('[SplashRoute] hideAsync failed', err);
 			}
+			// navigate to login (or "(tabs)" if you want to auto-route to main)
+			router.replace('/auth/login');
 		});
 	}, [pulse]);
 
-	// loader width interpolation (semi-rectangle center)
 	const loaderWidth = pulse.interpolate({
 		inputRange: [0, 1],
-		// map animated value to ~1% .. 99% of screen width
-		outputRange: [width * 0.01, width * 0.99],
+		outputRange: [width * 0.01, width * 0.75],
 	});
 
 	return (
 		<LinearGradient colors={['#0f0520', '#2e0d5a', '#5a0fcf']} style={styles.root}>
 			<SafeAreaView style={styles.safe}>
 				<View style={styles.logoWrap}>
-					{/* use bundled logo at src/components/ui/logo.png */}
-					<Image source={require('./ui/logos.png')} style={styles.logo} resizeMode="contain" />
-					{/* <Text style={styles.title}>SPORTIFY</Text>
-					<Text style={styles.subtitle}>CELEBRATE EVERY SCORE</Text> */}
+					<Image source={require('@/src/components/ui/logosss.png')} style={styles.logo} resizeMode="contain" />
 				</View>
 
 				<View style={styles.loaderWrap}>
@@ -75,47 +69,10 @@ export default function SplashScreen() {
 }
 
 const styles = StyleSheet.create({
-	root: {
-		flex: 1,
-		justifyContent: 'center',
-		alignItems: 'center',
-		backgroundColor: '#12121bff', // fallback if LinearGradient not available
-	},
+	root: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#12121bff' },
 	safe: { flex: 1, width: '100%', justifyContent: 'center', alignItems: 'center' },
-	logoWrap: {
-		alignItems: 'center',
-		marginBottom: 40,
-	},
-	logo: {
-		width: 300,
-		height: 300,
-		marginBottom: 18,
-	},
-	title: {
-		color: '#91FFFD',
-		fontSize: 36,
-		fontWeight: '800',
-		letterSpacing: 2,
-		textShadowColor: 'rgba(0,0,0,0.5)',
-		textShadowOffset: { width: 0, height: 2 },
-		textShadowRadius: 6,
-	},
-	subtitle: {
-		color: '#e7d9ff',
-		marginTop: 6,
-		fontSize: 12,
-		letterSpacing: 2,
-	},
-	loaderWrap: {
-		position: 'absolute',
-		bottom: 80,
-		width: '100%',
-		alignItems: 'center',
-	},
-	loader: {
-		height: 14,
-		borderRadius: 999,
-		backgroundColor: '#2c92ffff',
-		opacity: 0.95,
-	},
+	logoWrap: { alignItems: 'center', marginBottom: 40 },
+	logo: { width: 300, height: 300, marginBottom: 118 },
+	loaderWrap: { position: 'absolute', bottom: 80, width: '100%', alignItems: 'center' },
+	loader: { height: 30, borderRadius: 999, backgroundColor: '#2c92ffff', opacity: 0.95 },
 });
