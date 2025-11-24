@@ -48,8 +48,8 @@ export default function FavouritesScreen() {
     <View style={{ flex: 1, padding: 20, backgroundColor: bgColor }}>
       {/* header: title + clear button */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-        <Text style={{ fontSize: 20, fontWeight: '700', marginTop: 35, color: theme === 'dark' ? '#fff' : '#08122a' }}>My Favourites</Text>
-        <TouchableOpacity onPress={confirmClearAll} style={{ paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#ff3b30', borderRadius: 999, elevation: 2 }}>
+        <Text style={{ fontSize: 22, fontWeight: '700', marginTop: 28, color: theme === 'dark' ? '#fff' : '#08122a' }}>My Favourites</Text>
+        <TouchableOpacity onPress={confirmClearAll} style={{ paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#ff3b30', borderRadius: 999, elevation: 2, marginTop: 25}}>
           <Text style={{ color: '#fff', fontWeight: '700' }}>Clear</Text>
         </TouchableOpacity>
       </View>

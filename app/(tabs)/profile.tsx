@@ -14,14 +14,14 @@ import ImageOrSvg from '@/src/components/ui/image-with-fallback';
 import { Feather } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
-  Image,
+  Animated, Easing, Image,
   Modal,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 
 import { Colors } from '@/constants/theme';
@@ -55,6 +55,17 @@ export default function ProfileScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [editName, setEditName] = useState(user?.username);
   const [editEmail, setEditEmail] = useState(user?.email);
+
+  // animated value to slide the knob when theme changes
+  const knobAnim = React.useRef(new Animated.Value(theme === 'dark' ? 1 : 0)).current;
+  React.useEffect(() => {
+    Animated.timing(knobAnim, {
+      toValue: theme === 'dark' ? 1 : 0,
+      duration: 260,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start();
+  }, [theme, knobAnim]);
 
   const themeStyles = {
     text: { color: Colors[theme].text },
@@ -201,7 +212,7 @@ export default function ProfileScreen() {
       </TouchableOpacity>
 
       {/* Achievements Card */}
-      <View style={styles.card}>
+      <View style={[styles.card, theme === 'dark' ? { backgroundColor: '#696a88ff' } : undefined]}>
         <Text style={[styles.sectionTitle, styles.sectionTitleStatic]}>Achievements</Text>
         <View style={styles.badgeContainer}>
           <View style={styles.badge}>
@@ -228,15 +239,50 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/* Theme Card */}
-      <View style={styles.card}>
-        <Text style={[styles.sectionTitle, styles.sectionTitleStatic]}>Theme</Text>
-        <TouchableOpacity style={styles.themeBtn} onPress={() => toggleTheme()}>
-          <Text style={styles.themeText}>Switch to {theme === 'light' ? 'Dark' : 'Light'} Mode</Text>
+      {/* Theme Card - toggle UI */}
+      <View
+        // keep shared card styles but reduce internal padding so overall height is smaller
+        style={[
+          styles.card,
+          theme === 'dark' ? { backgroundColor: '#696a88ff' } : undefined,
+          { paddingVertical: 12, paddingHorizontal: 16 }, // reduced height
+        ]}
+      >
+        {/* smaller gap below title to bring toggle closer */}
+        <Text style={[styles.sectionTitle, styles.sectionTitleStatic, { marginBottom: 4 }]}>Theme</Text>
+
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => toggleTheme()}
+          style={{ alignSelf: 'center', marginVertical: 2 }} // tighter vertical spacing
+        >
+          <View style={[styles.toggleContainer, theme === 'dark' ? styles.toggleDarkBg : styles.toggleLightBg]}>
+            <View style={styles.toggleIconLeft}>
+              <Feather name="sun" size={34} color={theme === 'dark' ? '#999' : '#FFD54F'} />
+            </View>
+            <View style={styles.toggleIconRight}>
+              <Feather name="moon" size={34} color={theme === 'dark' ? '#fff' : '#666'} />
+            </View>
+            <Animated.View
+              style={[
+                styles.toggleKnob,
+                {
+                  transform: [
+                    {
+                      translateX: knobAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0, 66],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            />
+          </View>
         </TouchableOpacity>
       </View>
 
-      
+
       <View>
         <TouchableOpacity style={styles.logoutBtn} onPress={() => dispatch(logout())}>
           <Feather name="log-out" size={18} color="#fff" style={{ marginRight: 8 }} />
@@ -317,7 +363,7 @@ const styles = StyleSheet.create({
   email: { fontSize: 16, marginBottom: 10 },
 
   editBtn: {
-    backgroundColor: '#4facfe',
+    backgroundColor: '#2c92ffff',
     paddingVertical: 10,
     paddingHorizontal: 20, // slightly reduced so icon+text fit nicely
     borderRadius: 25,
@@ -331,7 +377,7 @@ const styles = StyleSheet.create({
   editText: { color: '#fff', fontWeight: '600', fontSize: 16 },
 
   card: {
-    backgroundColor: '#696a88ff',
+    backgroundColor: '#fff',
     borderRadius: 20,
     padding: 20,
     marginHorizontal: 20,
@@ -383,5 +429,45 @@ const styles = StyleSheet.create({
 
   modalButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
   cancelBtn: { fontSize: 16, color: '#ff3b30', fontWeight: 'bold' },
-  saveBtn: { fontSize: 16, color: '#061422ff', fontWeight: 'bold' },
+  saveBtn: { fontSize: 16, color: '#2c92ffff', fontWeight: 'bold' },
+
+  // larger toggle control
+  toggleContainer: {
+    width: 140,         // larger width
+    height: 60,         // larger height
+    borderRadius: 36,
+    padding: 16,
+    justifyContent: 'center',
+    position: 'relative',
+    alignSelf: 'center',
+  },
+  toggleLightBg: {
+    backgroundColor: '#e8e8ee',
+  },
+  toggleDarkBg: {
+    backgroundColor: '#222430',
+  },
+  toggleKnob: {
+    position: 'absolute',
+    left: 16,             // match padding
+    width: 50,          // bigger knob
+    height: 40,
+    borderRadius: 40,
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  toggleIconLeft: {
+    position: 'absolute',
+    left: 25,            // reposition for larger control
+    zIndex: 0,
+  },
+  toggleIconRight: {
+    position: 'absolute',
+    right: 25,           // reposition for larger control
+    zIndex: 0,
+  },
 });

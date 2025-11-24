@@ -232,8 +232,8 @@ export default function ExploreScreen() {
               activeOpacity={0.8}
             >
               <ImageOrSvg uri={finalUri} style={styles.logo} placeholder="https://via.placeholder.com/120" />
-              <Text style={styles.teamName}>{name}</Text>
-              <Text style={styles.smallText}>{country}</Text>
+              <Text style={[styles.teamName, { color: theme === 'dark' ? '#fff' : '#08122a' }]}>{name}</Text>
+              <Text style={[styles.smallText, { color: theme === 'dark' ? '#e6e6ef' : '#8a95ab' }]}>{country}</Text>
             </TouchableOpacity>
           );
         }}
@@ -245,7 +245,8 @@ export default function ExploreScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: "#f6f7fb" },
-  pageTitle: { fontSize: 20, fontWeight: '800', marginTop: 20, marginBottom: 8, color: '#08122a' },
+  // increased bottom margin so there's more space between title and the buttons
+  pageTitle: { fontSize: 22, fontWeight: '800', marginTop: 20, marginBottom: 15, color: '#08122a' },
   title: { fontSize: 26, fontWeight: "bold", marginBottom: 15 },
   search: {
     backgroundColor: "#fff",
@@ -265,7 +266,8 @@ const styles = StyleSheet.create({
     borderColor: '#2c92ffff',
     borderWidth: 1,
   },
-  modeRow: { flexDirection: 'row', marginBottom: 12 },
+  // add a little top spacing to separate from title
+  modeRow: { flexDirection: 'row', marginTop: 8, marginBottom: 12 },
   // light-mode base
   modeBtn: {
     flex: 1,
@@ -289,7 +291,7 @@ const styles = StyleSheet.create({
     borderColor: '#2c92ffff',
   },
   // light-mode active
-  activeModeBtn: { backgroundColor: '#1e90ff', borderColor: '#1e90ff' },
+  activeModeBtn: { backgroundColor: '#2c92ffff', borderColor: '#1e90ff' },
   // dark-mode active (user requested swapped colors)
   activeModeBtnDark: { backgroundColor: '#2c92ffff', borderColor: '#0b131cff' },
   modeText: { color: '#000', fontWeight: '600' },

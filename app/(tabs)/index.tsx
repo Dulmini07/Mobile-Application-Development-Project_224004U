@@ -178,9 +178,12 @@ export default function HomeScreen() {
       {/* header: welcome row (welcome + avatar) and section title below */}
       <View style={localStyles.headerContainer}>
         <View style={localStyles.headerTopRow}>
-          <Text style={[localStyles.welcomeText, { color: theme === 'dark' ? '#fff' : '#08122a' }]}>
-            Welcome, {user?.name ?? user?.username ?? 'Guest'}
-          </Text>
+          {/* center the welcome text while keeping avatar on the right */}
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={[localStyles.welcomeText, { marginTop: 28, marginBottom:10, color: theme === 'dark' ? '#fff' : '#08122a' }]}>
+              Welcome, {user?.name ?? user?.username ?? 'Guest'}
+            </Text>
+          </View>
 
           <TouchableOpacity onPress={() => router.push('/profile')} style={localStyles.avatarTouch}>
             <ImageOrSvg
@@ -224,11 +227,11 @@ const localStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 10,
   },
-  welcomeText: { fontSize: 20, fontWeight: '700', marginBottom: 0 },
-  sectionTitleText: { fontSize: 18, fontWeight: '700' },
-  avatarSmall: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: '#fff' },
-  avatarTouch: { marginLeft: 12 },
+  welcomeText: { fontSize: 22, fontWeight: '700', marginBottom: 0 },
+  sectionTitleText: { fontSize: 20, fontWeight: '700' },
+  avatarSmall: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: '#fff', marginTop: 18 },
+  avatarTouch: { marginLeft: 8 },
   loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 });
