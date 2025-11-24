@@ -1,3 +1,4 @@
+import { useTheme } from '@/src/context/ThemeContext';
 import { fetchEventDetails, fetchPlayers } from '@/src/services/sportsApi';
 import { addFavourite, removeFavourite } from '@/src/store';
 import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
@@ -6,6 +7,7 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function DetailsScreen() {
+
   const params = useLocalSearchParams() as Record<string, any>;
   const id = (params?.id ?? params?.idEvent ?? params?.eventId) as string | undefined;
 

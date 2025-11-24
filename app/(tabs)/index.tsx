@@ -1,21 +1,96 @@
 import MatchCard from '@/src/components/MatchCard';
+import ImageOrSvg from '@/src/components/ui/ImageOrSvg';
+import { useTheme } from '@/src/context/ThemeContext';
 import { addFavourite, removeFavourite, RootState } from '@/src/store';
+import { updateProfileImage } from '@/src/store/authSlice';
 import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  Image,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+
+// resolve expo-image-manipulator at runtime (optional)
+let ImageManipulator: any = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  ImageManipulator = require('expo-image-manipulator');
+} catch {
+  ImageManipulator = null;
+}
 
 export default function HomeScreen() {
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const { theme } = useTheme();
+  const containerBg = theme === 'dark' ? '#0b131cff' : '#f6f7fb';
   const favourites = useAppSelector((s) => s.favourites.items);
+  const user = useAppSelector((state: RootState) => state.auth.user);
+  // Ensure Android content:// profile URIs are converted to file:// if possible
+  useEffect(() => {
+    (async () => {
+      try {
+        if (Platform.OS === 'android' && user?.image && String(user.image).startsWith('content://')) {
+          if (!ImageManipulator) {
+            // eslint-disable-next-line no-console
+            console.warn('[HOME] expo-image-manipulator not installed — cannot convert content:// URI for Android');
+            return;
+          }
+          try {
+            const m = await ImageManipulator.manipulateAsync(String(user.image), [], {
+              format: ImageManipulator.SaveFormat.PNG,
+            });
+            if (m?.uri) {
+              dispatch(updateProfileImage(m.uri));
+              // eslint-disable-next-line no-console
+              console.log('[HOME] converted profile content:// ->', m.uri);
+            }
+          } catch (err) {
+            // eslint-disable-next-line no-console
+            console.log('[HOME] image conversion failed', err);
+          }
+        }
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.log('[HOME] normalize image effect error', e);
+      }
+    })();
+  }, [user?.image, dispatch]);
 
   const [matches, setMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 🔥 Get logged-in user from Redux
-  const user = useAppSelector((state: RootState) => state.auth.user);
+  // debug: log user image URI when it changes (avoid placing console.log inside JSX)
+  useEffect(() => {
+    // eslint-disable-next-line no-console
+    console.log('[HOME] user.image ->', user?.image);
+  }, [user?.image]);
+
+  // Prefetch helper for home images (normalize svg -> png and prefetch)
+  const prefetchImages = async (uris: (string | null | undefined)[], limit = 30) => {
+    if (!uris || uris.length === 0) return;
+    const normalize = (u: any) => {
+      if (!u) return null;
+      try {
+        const s = String(u);
+        if (s.startsWith('http')) {
+          return s.endsWith('.svg') ? s.replace(/\.svg(\?.*)?$/i, '.png') : s;
+        }
+      } catch {}
+      return null;
+    };
+    const candidates = uris.map(normalize).filter(Boolean) as string[];
+    const slice = candidates.slice(0, limit);
+    await Promise.all(slice.map((u) => Image.prefetch(u).catch(() => false)));
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -57,6 +132,10 @@ export default function HomeScreen() {
             status,
           };
         });
+
+        // prefetch top match images to warm cache (limit 30)
+        await prefetchImages(mapped.map((m: any) => m.image), 30);
+
         setMatches(mapped);
       } catch (e: any) {
         setError(e?.message ?? 'Failed to load matches');
@@ -79,7 +158,7 @@ export default function HomeScreen() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <View style={localStyles.loadingWrap}>
         <ActivityIndicator size="large" />
         <Text style={{ marginTop: 12 }}>Loading matches…</Text>
       </View>
@@ -95,28 +174,39 @@ export default function HomeScreen() {
   }
 
   return (
-    <View style={{ flex: 1, padding: 20, backgroundColor: '#fff' }}>
-      
-      {/* 🔥 Logged-in username at top */}
-      <Text style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 10 }}>
-        Welcome, {user?.name ?? user?.username ?? 'Guest'}
-      </Text>
+    <View style={{ flex: 1, padding: 20, backgroundColor: containerBg }}>
+      {/* header: welcome row (welcome + avatar) and section title below */}
+      <View style={localStyles.headerContainer}>
+        <View style={localStyles.headerTopRow}>
+          <Text style={[localStyles.welcomeText, { color: theme === 'dark' ? '#fff' : '#08122a' }]}>
+            Welcome, {user?.name ?? user?.username ?? 'Guest'}
+          </Text>
 
-      <Text style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 15 }}>
-        Upcoming Matches
-      </Text>
+          <TouchableOpacity onPress={() => router.push('/profile')} style={localStyles.avatarTouch}>
+            <ImageOrSvg
+              uri={user?.image || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}
+              style={localStyles.avatarSmall}
+            />
+          </TouchableOpacity>
+        </View>
+
+        <Text style={[localStyles.sectionTitleText, { color: theme === 'dark' ? '#fff' : '#08122a' }]}>
+          Upcoming Matches
+        </Text>
+      </View>
 
       <FlatList
         data={matches}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item, index) =>
+          String(item?.id ?? item?.idEvent ?? `${item?.title ?? 'match'}-${index}`)
+        }
         renderItem={({ item }) => (
           <MatchCard
             item={item}
-            status={item.status} // { changed code }
+            status={item.status}
             isFav={favourites.some((m) => m.id === item.id)}
             onFavourite={() => toggleFavourite(item)}
             onPress={() =>
-              // pass the full item so Details can render without extra fetch
               router.push({ pathname: '/details/[id]', params: item })
             }
           />
@@ -125,3 +215,20 @@ export default function HomeScreen() {
     </View>
   );
 }
+
+const localStyles = StyleSheet.create({
+  headerContainer: {
+    marginBottom: 12,
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  welcomeText: { fontSize: 20, fontWeight: '700', marginBottom: 0 },
+  sectionTitleText: { fontSize: 18, fontWeight: '700' },
+  avatarSmall: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: '#fff' },
+  avatarTouch: { marginLeft: 12 },
+  loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+});

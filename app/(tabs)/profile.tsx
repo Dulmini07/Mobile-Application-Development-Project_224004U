@@ -1,8 +1,22 @@
 import * as ImagePicker from 'expo-image-picker';
-import React, { useState } from 'react';
+import { Platform } from 'react-native';
+// resolve expo-image-manipulator at runtime if installed; fall back to null
+let ImageManipulator: any = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  ImageManipulator = require('expo-image-manipulator');
+} catch {
+  // module not installed, we'll skip conversion on Android
+  ImageManipulator = null;
+}
+
+import ImageOrSvg from '@/src/components/ui/image-with-fallback';
+import { Feather } from '@expo/vector-icons';
+import React, { useEffect, useState } from 'react';
 import {
   Image,
   Modal,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -16,9 +30,26 @@ import { RootState } from '@/src/store';
 import { logout, setAuth, updateProfileImage } from '@/src/store/authSlice';
 import { useDispatch, useSelector } from 'react-redux';
 
+// resolve expo-linear-gradient at runtime and fallback to a plain View when unavailable
+let LinearGradient: any;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  LinearGradient = require('expo-linear-gradient').LinearGradient;
+} catch {
+  // fallback: simple wrapper that renders a View with same style/children
+  // keeps UI working if expo-linear-gradient isn't installed
+  // eslint-disable-next-line react/display-name
+  LinearGradient = ({ children, style }: any) => {
+    const { View } = require('react-native');
+    return <View style={style}>{children}</View>;
+  };
+}
+
 export default function ProfileScreen() {
   const dispatch = useDispatch();
   const { theme, toggleTheme } = useTheme();
+  // { changed code } dark mode background (updated)
+  const bgColor = theme === 'dark' ? '#12121bff' : Colors[theme].background;
   const user = useSelector((state: RootState) => state.auth.user);
 
   const [modalVisible, setModalVisible] = useState(false);
@@ -30,37 +61,105 @@ export default function ProfileScreen() {
     cardBg: { backgroundColor: Colors[theme].tint },
   };
 
-  // === PICK IMAGE FROM GALLERY OR CAMERA ===
+  // normalize & prefetch user image to avoid intermittent blank avatar
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        if (!user?.image) return;
+        let uri = String(user.image);
+
+        // If Android content uri => try to convert to cache file:// so <Image> can render reliably
+        if (Platform.OS === 'android' && uri.startsWith('content://')) {
+          if (ImageManipulator) {
+            try {
+              const m = await ImageManipulator.manipulateAsync(uri, [], { format: ImageManipulator.SaveFormat.PNG });
+              if (mounted && m?.uri) {
+                uri = m.uri;
+                // update store with converted uri so header uses stable file:// path
+                dispatch(updateProfileImage(uri));
+              }
+            } catch (err) {
+              // eslint-disable-next-line no-console
+              console.log('[PROFILE] image conversion failed', err);
+            }
+          } else {
+            // eslint-disable-next-line no-console
+            console.warn('[PROFILE] expo-image-manipulator not installed — content:// may not render on Android');
+          }
+        }
+
+        // If SVG URL, try prefetching the PNG variant to warm cache (helps RN Image)
+        const maybePng = uri.endsWith('.svg') ? uri.replace(/\.svg(\?.*)?$/i, '.png') : uri;
+        if (maybePng.startsWith('http')) {
+          // prefetch (ignore failure)
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          (async () => {
+            try {
+              // Image.prefetch returns a promise, but not all platforms support; ignore errors
+              // eslint-disable-next-line @typescript-eslint/no-var-requires
+              const { Image: RNImage } = require('react-native');
+              await RNImage.prefetch(maybePng);
+            } catch {
+              // ignore
+            }
+          })();
+        }
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.log('[PROFILE] normalize/prefetch error', e);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [user?.image, dispatch]);
+
   const handlePickImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
     if (!permission.granted) {
       alert("Permission required to upload image");
       return;
     }
-
     const result = await ImagePicker.launchImageLibraryAsync({
       allowsEditing: true,
       aspect: [1, 1],
       quality: 1,
     });
-
     if (!result.canceled) {
-      const uri = result.assets[0].uri;
-      dispatch(updateProfileImage(uri)); // save to redux
+      let uri = result.assets[0].uri;
+      // debug: show picked uri
+      console.log('[PROFILE] picked image uri ->', uri);
+
+      // Android may return content:// URIs — convert to a cache file:// if ImageManipulator is available
+      if (Platform.OS === 'android' && uri && uri.startsWith('content://')) {
+        if (ImageManipulator) {
+          try {
+            const manipulated = await ImageManipulator.manipulateAsync(uri, [], { compress: 1, format: ImageManipulator.SaveFormat.PNG });
+            if (manipulated?.uri) {
+              uri = manipulated.uri;
+              // eslint-disable-next-line no-console
+              console.log('[PROFILE] converted content:// ->', uri);
+            }
+          } catch (err) {
+            // eslint-disable-next-line no-console
+            console.log('[PROFILE] ImageManipulator convert failed', err);
+          }
+        } else {
+          // expo-image-manipulator not installed — cannot convert content://; leave original URI
+          // eslint-disable-next-line no-console
+          console.warn('[PROFILE] expo-image-manipulator not installed — content:// URI may not render on Android');
+        }
+      }
+
+      dispatch(updateProfileImage(uri));
     }
   };
 
   const saveProfile = () => {
     dispatch(
       setAuth({
-        user: {
-          ...user,
-          username: editName,
-          email: editEmail,
-          image: user?.image,
-          id: user?.id,
-        },
+        user: { ...user, username: editName, email: editEmail, image: user?.image, id: user?.id },
         token: user?.token,
       })
     );
@@ -68,82 +167,88 @@ export default function ProfileScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: Colors[theme].background }]}>
-      {/* Avatar */}
-      <TouchableOpacity onPress={handlePickImage}>
-        <Image
-          source={{
-            uri:
-              user?.image ||
-              "https://cdn-icons-png.flaticon.com/512/149/149071.png",
-          }}
-          style={styles.avatar}
-        />
-      </TouchableOpacity>
+    <ScrollView style={[styles.container, { backgroundColor: bgColor }]}>
+      {/* Top header */}
+      <View style={styles.headerBar}>
+        <Text style={[styles.headerTitle, themeStyles.text]}>My profile</Text>
+      </View>
 
-      <Text style={{ marginBottom: 5, opacity: 0.7 }}>
-        Tap to change photo
-      </Text>
+      {/* Gradient Header */}
+      <LinearGradient
+        colors={['#1e90ff', '#4facfe']}
+        style={styles.headerGradient}
+      >
+        {/* Avatar */}
+        <TouchableOpacity onPress={handlePickImage} style={styles.avatarWrap}>
+          <ImageOrSvg
+            uris={[user?.image, 'https://cdn-icons-png.flaticon.com/512/149/149071.png']}
+            style={styles.avatar}
+            placeholder="https://cdn-icons-png.flaticon.com/512/149/149071.png"
+          />
+        </TouchableOpacity>
 
-      {/* Username */}
-      <Text style={[styles.name, themeStyles.text]}>
-        {user?.username}
-      </Text>
-
-      {/* Email */}
-      {user?.email && (
-        <Text style={[styles.email, themeStyles.text]}>{user.email}</Text>
-      )}
+        <Text style={[styles.name, themeStyles.text]}>{user?.username}</Text>
+        {user?.email && <Text style={[styles.email, themeStyles.text]}>{user.email}</Text>}
+      </LinearGradient>
 
       {/* Edit Profile Button */}
-      <TouchableOpacity style={styles.editBtn} onPress={() => setModalVisible(true)}>
+      <TouchableOpacity
+        style={styles.editBtn}
+        onPress={() => setModalVisible(true)}
+      >
+        <Feather name="edit" size={18} color="#fff" style={{ marginRight: 8 }} />
         <Text style={styles.editText}>Edit Profile</Text>
       </TouchableOpacity>
 
-      {/* Badges Section */}
-      <Text style={[styles.sectionTitle, themeStyles.text]}>Achievements</Text>
-
-      <View style={styles.badgeContainer}>
-        <View style={styles.badge}>
-          <Image
-            source={{ uri: "https://cdn-icons-png.flaticon.com/512/2583/2583313.png" }}
-            style={styles.badgeIcon}
-          />
-          <Text style={[styles.badgeLabel, themeStyles.text]}>Rookie</Text>
-        </View>
-
-        <View style={styles.badge}>
-          <Image
-            source={{ uri: "https://cdn-icons-png.flaticon.com/512/2583/2583343.png" }}
-            style={styles.badgeIcon}
-          />
-          <Text style={[styles.badgeLabel, themeStyles.text]}>Fan Level 1</Text>
-        </View>
-
-        <View style={styles.badge}>
-          <Image
-            source={{ uri: "https://cdn-icons-png.flaticon.com/512/2583/2583352.png" }}
-            style={styles.badgeIcon}
-          />
-          <Text style={[styles.badgeLabel, themeStyles.text]}>Collector</Text>
+      {/* Achievements Card */}
+      <View style={styles.card}>
+        <Text style={[styles.sectionTitle, styles.sectionTitleStatic]}>Achievements</Text>
+        <View style={styles.badgeContainer}>
+          <View style={styles.badge}>
+            <Image
+              source={{ uri: "https://cdn-icons-png.flaticon.com/512/2583/2583313.png" }}
+              style={styles.badgeIcon}
+            />
+            <Text style={[styles.badgeLabel, styles.badgeLabelStatic]}>Rookie</Text>
+          </View>
+          <View style={styles.badge}>
+            <Image
+              source={{ uri: "https://cdn-icons-png.flaticon.com/512/2583/2583343.png" }}
+              style={styles.badgeIcon}
+            />
+            <Text style={[styles.badgeLabel,styles.badgeLabelStatic]}>Fan Level 1</Text>
+          </View>
+          <View style={styles.badge}>
+            <Image
+              source={{ uri: "https://cdn-icons-png.flaticon.com/512/2583/2583352.png" }}
+              style={styles.badgeIcon}
+            />
+            <Text style={[styles.badgeLabel,styles.badgeLabelStatic]}>Collector</Text>
+          </View>
         </View>
       </View>
 
-      {/* Logout Button */}
-      <TouchableOpacity
-        style={styles.logoutBtn}
-        onPress={() => dispatch(logout())}
-      >
-        <Text style={styles.logoutText}>Logout</Text>
-      </TouchableOpacity>
+      {/* Theme Card */}
+      <View style={styles.card}>
+        <Text style={[styles.sectionTitle, styles.sectionTitleStatic]}>Theme</Text>
+        <TouchableOpacity style={styles.themeBtn} onPress={() => toggleTheme()}>
+          <Text style={styles.themeText}>Switch to {theme === 'light' ? 'Dark' : 'Light'} Mode</Text>
+        </TouchableOpacity>
+      </View>
+
+      
+      <View>
+        <TouchableOpacity style={styles.logoutBtn} onPress={() => dispatch(logout())}>
+          <Feather name="log-out" size={18} color="#fff" style={{ marginRight: 8 }} />
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Edit Profile Modal */}
       <Modal visible={modalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, themeStyles.cardBg]}>
-            <Text style={[styles.modalTitle, themeStyles.text]}>
-              Edit Profile
-            </Text>
+          <View style={[styles.modalContent, { backgroundColor: '#fff' }]}>
+            <Text style={[styles.modalTitle, themeStyles.text]}>Edit Profile</Text>
 
             <TextInput
               value={editName}
@@ -151,7 +256,6 @@ export default function ProfileScreen() {
               style={styles.input}
               placeholder="Username"
             />
-
             <TextInput
               value={editEmail}
               onChangeText={setEditEmail}
@@ -171,125 +275,113 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
-
-      {/* Theme selector */}
-      <Text style={[styles.sectionTitle, themeStyles.text]}>Theme</Text>
-      <TouchableOpacity style={[styles.themeBtn]} onPress={() => toggleTheme()}>
-        <Text style={styles.themeText}>Switch to {theme === 'light' ? 'Dark' : 'Light'} Mode</Text>
-      </TouchableOpacity>
-
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 60, alignItems: "center" },
-  avatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 70,
-    borderWidth: 3,
-    borderColor: "#1e90ff",
-    marginBottom: 10,
+  container: { flex: 1 },
+  headerBar: {
+    paddingHorizontal: 20,
+    paddingTop: 40,   // reduced top spacing
+    paddingBottom: 4, // reduced bottom spacing
   },
-  name: { fontSize: 24, fontWeight: "bold" },
-  email: { fontSize: 16, opacity: 0.7, marginBottom: 20 },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+  },
+
+  // Header Gradient
+  headerGradient: {
+    paddingTop: 20,    // reduce top padding so avatar sits closer to header title
+    paddingBottom: 30, // keep some bottom padding
+    alignItems: 'center',
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+  },
+
+  avatarWrap: {
+    borderRadius: 80,
+    borderWidth: 3,
+    borderColor: '#fff',
+    marginBottom: 6, // slightly reduced gap under avatar
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  avatar: { width: 120, height: 120, borderRadius: 70 },
+
+  name: { fontSize: 24, fontWeight: 'bold', marginBottom: 5 },
+  email: { fontSize: 16, marginBottom: 10 },
 
   editBtn: {
-    backgroundColor: "#1e90ff",
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    marginBottom: 25,
+    backgroundColor: '#4facfe',
+    paddingVertical: 10,
+    paddingHorizontal: 20, // slightly reduced so icon+text fit nicely
+    borderRadius: 25,
+    alignSelf: 'center',
+    marginTop: -20,
+    marginBottom: 20,
+    elevation: 4,
+    flexDirection: 'row', // place icon and text on a single row
+    alignItems: 'center',
   },
-  editText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
+  editText: { color: '#fff', fontWeight: '600', fontSize: 16 },
 
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    marginBottom: 10,
-  },
-
-  badgeContainer: {
-    flexDirection: "row",
-    gap: 20,
-    marginBottom: 30,
-  },
-
-  badge: { alignItems: "center" },
-  badgeIcon: { width: 60, height: 60 },
-  badgeLabel: { marginTop: 5, fontWeight: "600" },
-
-  logoutBtn: {
-    backgroundColor: "#ff3b30",
-    paddingVertical: 12,
-    paddingHorizontal: 60,
-    borderRadius: 8,
-  },
-  logoutText: { color: "#fff", fontWeight: "bold", fontSize: 18 },
-
-  // Modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalContent: {
-    width: "80%",
+  card: {
+    backgroundColor: '#696a88ff',
+    borderRadius: 20,
     padding: 20,
-    borderRadius: 12,
-  },
-  modalTitle: { fontSize: 22, fontWeight: "bold", marginBottom: 15 },
-
-  input: {
-    backgroundColor: "#eee",
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 10,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 5,
   },
 
-  modalButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 10,
-  },
+  sectionTitle: { fontSize: 18, fontWeight: '600', marginBottom: 15 },
+  // always black heading (used for Achievements and Theme)
+  sectionTitleStatic: { color: '#000' },
+  badgeLabelStatic: { color: '#000' },
 
-  cancelBtn: { fontSize: 16, color: "#ff3b30", fontWeight: "bold" },
-  saveBtn: { fontSize: 16, color: "#061422ff", fontWeight: "bold" },
+  badgeContainer: { flexDirection: 'row', justifyContent: 'space-around' },
+  badge: { alignItems: 'center' },
+  badgeIcon: { width: 60, height: 60, marginBottom: 5 },
+  badgeLabel: { fontWeight: '600' },
 
   themeBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: '#ddd',
-  },
-  themeActive: {
     backgroundColor: '#1e90ff',
-  },
-  themeText: {
-    color: '#000',
-    fontWeight: '600',
-  },
-
-  // Floating Save button styles
-  floatingSave: {
-    position: 'absolute',
-    right: 20,
-    bottom: 28,
-    backgroundColor: '#1e90ff',
-    paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 24,
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
+    borderRadius: 20,
+    alignItems: 'center',
   },
-  floatingSaveText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 14,
+  themeText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+
+  logoutBtn: {
+    backgroundColor: '#e02117ff',
+    paddingVertical: 10,
+    paddingHorizontal: 18, // slightly smaller to accommodate icon
+    borderRadius: 25,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    minWidth: 140,
   },
+  logoutText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+
+  // Modal
+  modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
+  modalContent: { width: '85%', borderRadius: 20, padding: 20 },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 15 },
+
+  input: { backgroundColor: '#f1f1f1', padding: 12, borderRadius: 12, marginBottom: 12 },
+
+  modalButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
+  cancelBtn: { fontSize: 16, color: '#ff3b30', fontWeight: 'bold' },
+  saveBtn: { fontSize: 16, color: '#061422ff', fontWeight: 'bold' },
 });

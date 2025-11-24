@@ -5,7 +5,6 @@ import { useSelector } from 'react-redux';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { HapticTab } from '@/src/components/haptic-tab';
-import { IconSymbol } from '@/src/components/ui/icon-symbol';
 import { RootState } from '@/src/store';
 import { Feather } from '@expo/vector-icons';
 
@@ -22,10 +21,20 @@ export default function TabLayout() {
     }
   }, [user]);
 
+  // compute tab bar style: add top padding + height so icons sit lower
+  // keep dark-mode background color when colorScheme === 'dark'
+  const tabBarStyle = {
+    paddingTop: 10,
+    height: 100,
+    ...(colorScheme === 'dark' ? { backgroundColor: '#15181fff' } : {}),
+  };
+
   return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        // apply the computed tabBarStyle (includes padding/height and optional dark bg)
+        tabBarStyle,
         headerShown: false,
         tabBarButton: HapticTab,
       }}
