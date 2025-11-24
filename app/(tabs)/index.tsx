@@ -210,6 +210,7 @@ export default function HomeScreen() {
             isFav={favourites.some((m) => m.id === item.id)}
             onFavourite={() => toggleFavourite(item)}
             onPress={() =>
+              // navigate to details and pass the item; details screen will merge passed fields
               router.push({ pathname: '/details/[id]', params: item })
             }
           />

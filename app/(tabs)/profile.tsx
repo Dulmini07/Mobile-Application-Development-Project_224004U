@@ -258,7 +258,7 @@ export default function ProfileScreen() {
         >
           <View style={[styles.toggleContainer, theme === 'dark' ? styles.toggleDarkBg : styles.toggleLightBg]}>
             <View style={styles.toggleIconLeft}>
-              <Feather name="sun" size={34} color={theme === 'dark' ? '#999' : '#FFD54F'} />
+              <Feather name="sun" size={34} color={theme === 'dark' ? '#999' : '#666'} />
             </View>
             <View style={styles.toggleIconRight}>
               <Feather name="moon" size={34} color={theme === 'dark' ? '#fff' : '#666'} />
@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
 
-  sectionTitle: { fontSize: 18, fontWeight: '600', marginBottom: 15 },
+  sectionTitle: { fontSize: 18, fontWeight: '800', marginBottom: 15 },
   // always black heading (used for Achievements and Theme)
   sectionTitleStatic: { color: '#000' },
   badgeLabelStatic: { color: '#000' },
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
-    minWidth: 140,
+    minWidth: 150,
   },
   logoutText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
 

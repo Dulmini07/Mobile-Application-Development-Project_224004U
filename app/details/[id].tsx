@@ -7,6 +7,7 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function DetailsScreen() {
+  const { theme } = useTheme(); // { changed code } read current theme
 
   const params = useLocalSearchParams() as Record<string, any>;
   const id = (params?.id ?? params?.idEvent ?? params?.eventId) as string | undefined;
@@ -110,7 +111,7 @@ export default function DetailsScreen() {
   const dateText = `${details?.dateEvent ?? details?.date ?? ''} ${details?.strTime ?? details?.time ?? ''}`.trim();
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: theme === 'dark' ? '#12121bff' : undefined }}>
       {/* Header */}
       <View style={styles.header}>
         {banner ? (
@@ -118,10 +119,10 @@ export default function DetailsScreen() {
         ) : (
           <View style={[styles.banner, { backgroundColor: '#e6e6e6' }]} />
         )}
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.date}>{dateText}</Text>
+        <Text style={[styles.title, { color: theme === 'dark' ? '#fff' : undefined,  marginTop: 24}]}>{title}</Text>
+        <Text style={[styles.date, { color: theme === 'dark' ? '#e6e6ef' : 'gray', marginTop: 8 }]}>{dateText}</Text>
 
-        <TouchableOpacity onPress={toggleFavourite} style={styles.favBtn}>
+        <TouchableOpacity onPress={toggleFavourite} style={[styles.favBtn, { marginTop: 26 }]}>
           <Text style={{ color: 'white' }}>{isFav ? 'Remove Favourite' : 'Add Favourite'}</Text>
         </TouchableOpacity>
       </View>
@@ -134,7 +135,15 @@ export default function DetailsScreen() {
             onPress={() => setActiveTab(t)}
             style={[styles.localTabBtn, activeTab === t && styles.localTabActive]}
           >
-            <Text style={[styles.localTabText, activeTab === t && styles.localTabTextActive]}>{t}</Text>
+            <Text
+              style={[
+                styles.localTabText,
+                activeTab === t && styles.localTabTextActive,
+                { color: theme === 'dark' ? (activeTab === t ? '#fff' : '#e6e6ef') : undefined, marginTop: 8 },
+              ]}
+            >
+              {t}
+            </Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -142,54 +151,54 @@ export default function DetailsScreen() {
       {/* Tab Content */}
       {activeTab === 'Overview' && (
         <ScrollView style={styles.tabContent}>
-          <Text style={styles.sectionTitle}>Match Overview</Text>
-          <Text style={styles.desc}>{details?.strDescriptionEN ?? 'No description available.'}</Text>
+          <Text style={[styles.sectionTitle, { color: theme === 'dark' ? '#fff' : undefined, marginTop: 10}]}>Match Overview</Text>
+          <Text style={[styles.desc, { color: theme === 'dark' ? '#e6e6ef' : undefined }]}>{details?.strDescriptionEN ?? 'No description available.'}</Text>
 
           {/* added: dummy overview paragraph */}
-          <Text style={[styles.desc, { marginTop: 12 }]}>
+          <Text style={[styles.desc, {  color: theme === 'dark' ? '#e6e6ef' : undefined }]}>
             This match promises to deliver a thrilling and highly competitive contest, as both teams enter the fixture with impressive recent performances and strong momentum. Fans can expect an intense battle across all departments — batting, bowling, and fielding — with each side boasting match-winners capable of changing the course of the game at any moment. The top-order players from both teams have been in exceptional form, consistently scoring runs and building solid partnerships, while the middle-order units have shown the ability to accelerate under pressure.</Text>
         </ScrollView>
       )}
 
       {activeTab === 'Stats' && (
         <ScrollView style={styles.tabContent}>
-          <Text style={styles.sectionTitle}>Statistics</Text>
+          <Text style={[styles.sectionTitle, { color: theme === 'dark' ? '#fff' : undefined }]}>Statistics</Text>
 
-          <View style={styles.statCard}>
-            <Text>League</Text>
-            <Text style={styles.statValue}>{details?.strLeague ?? 'N/A'}</Text>
+          <View style={[styles.statCard, theme === 'dark' ? { backgroundColor: '#696a88ff' } : undefined]}>
+            <Text style={{ color: theme === 'dark' ? '#000' : undefined }}>League</Text>
+            <Text style={[styles.statValue, { color: theme === 'dark' ? '#000' : undefined }]}>{details?.strLeague ?? 'N/A'}</Text>
           </View>
 
-          <View style={styles.statCard}>
-            <Text>Venue</Text>
-            <Text style={styles.statValue}>{details?.strVenue ?? 'N/A'}</Text>
+          <View style={[styles.statCard, theme === 'dark' ? { backgroundColor: '#696a88ff' } : undefined]}>
+            <Text style={{ color: theme === 'dark' ? '#000' : undefined }}>Venue</Text>
+            <Text style={[styles.statValue, { color: theme === 'dark' ? '#000' : undefined }]}>{details?.strVenue ?? 'N/A'}</Text>
           </View>
 
-          <View style={styles.statCard}>
-            <Text>Country</Text>
-            <Text style={styles.statValue}>{details?.strCountry ?? 'N/A'}</Text>
+          <View style={[styles.statCard, theme === 'dark' ? { backgroundColor: '#696a88ff' } : undefined]}>
+            <Text style={{ color: theme === 'dark' ? '#000' : undefined }}>Country</Text>
+            <Text style={[styles.statValue, { color: theme === 'dark' ? '#000' : undefined }]}>{details?.strCountry ?? 'N/A'}</Text>
           </View>
         </ScrollView>
       )}
 
       {activeTab === 'Players' && (
         <ScrollView style={styles.tabContent}>
-          <Text style={styles.sectionTitle}>Players</Text>
+          <Text style={[styles.sectionTitle, { color: theme === 'dark' ? '#fff' : undefined }]}>Players</Text>
 
           {players.length === 0 ? (
-            <Text style={{ color: '#666' }}>Players not available</Text>
+            <Text style={{ color: theme === 'dark' ? '#000' : '#666' }}>Players not available</Text>
           ) : (
             <>
               {players.map((p: any) => (
-                <View key={p.idPlayer} style={styles.playerCard}>
+                <View key={p.idPlayer} style={[styles.playerCard, theme === 'dark' ? { backgroundColor: '#696a88ff' } : undefined]}>
                   {p.strCutout || p.strThumb ? (
                     <Image source={{ uri: p.strCutout ?? p.strThumb }} style={styles.playerImg} />
                   ) : (
                     <View style={[styles.playerImg, { backgroundColor: '#eee' }]} />
                   )}
                   <View>
-                    <Text style={styles.playerName}>{p.strPlayer}</Text>
-                    <Text style={styles.playerPos}>{p.strPosition ?? p.strNationality}</Text>
+                    <Text style={[styles.playerName, { color: theme === 'dark' ? '#000' : undefined }]}>{p.strPlayer}</Text>
+                    <Text style={[styles.playerPos, { color: theme === 'dark' ? '#000' : undefined }]}>{p.strPosition ?? p.strNationality}</Text>
                   </View>
                 </View>
               ))}
@@ -208,7 +217,7 @@ const styles = StyleSheet.create({
   date: { textAlign: 'center', color: 'gray' },
 
   favBtn: {
-    backgroundColor: '#1e90ff',
+    backgroundColor: '#2c92ffff',
     padding: 10,
     borderRadius: 10,
     alignSelf: 'center',
@@ -219,8 +228,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    // removed bottom border to eliminate the dividing line
   },
   localTabBtn: {
     paddingVertical: 10,
