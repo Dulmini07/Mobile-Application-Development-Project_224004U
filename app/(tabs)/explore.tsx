@@ -190,7 +190,11 @@ export default function ExploreScreen() {
 
       {/* Search Bar */}
       <TextInput
-        style={[styles.search, theme === 'dark' ? styles.searchDarkActive : undefined]}
+        style={[
+          styles.search,
+          theme === 'dark' ? styles.searchDarkActive : undefined,
+          theme === 'dark' ? styles.searchDarkText : undefined, // make entered text white in dark mode
+        ]}
         placeholder={mode === 'teams' ? 'Search teams...' : 'Search players...'}
         placeholderTextColor={theme === 'dark' ? '#ffffff' : '#8a95ab'}
         value={search}
@@ -265,6 +269,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#0b131cff',
     borderColor: '#2c92ffff',
     borderWidth: 1,
+  },
+  // input text color when dark mode is active
+  searchDarkText: {
+    color: '#ffffff',
   },
   // add a little top spacing to separate from title
   modeRow: { flexDirection: 'row', marginTop: 8, marginBottom: 12 },

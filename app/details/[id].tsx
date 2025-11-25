@@ -110,6 +110,27 @@ export default function DetailsScreen() {
   const title = details?.strEvent ?? details?.title ?? `${details?.strHomeTeam ?? ''} vs ${details?.strAwayTeam ?? ''}`;
   const dateText = `${details?.dateEvent ?? details?.date ?? ''} ${details?.strTime ?? details?.time ?? ''}`.trim();
 
+  // Prefer API payload (details.raw) for live/official fields returned by the server
+  const raw = details?.raw ?? details ?? {};
+
+  // Determine if match is active (explicit status or presence of live scores in API)
+  const isActive =
+    String(raw?.status ?? details?.status ?? '').toLowerCase() === 'active' ||
+    raw?.intHomeScore != null ||
+    raw?.intAwayScore != null ||
+    details?.intHomeScore != null ||
+    details?.intAwayScore != null;
+
+  // Pick scores from API payload first (raw), then fallback to top-level merged props
+  const homeScore = raw?.intHomeScore ?? details?.intHomeScore ?? null;
+  const awayScore = raw?.intAwayScore ?? details?.intAwayScore ?? null;
+
+  // Normalize current score display (prefer API ints, otherwise use any available score string)
+  const currentScore =
+    homeScore != null && awayScore != null
+      ? `${homeScore} - ${awayScore}`
+      : raw?.score ?? details?.score ?? 'N/A';
+
   return (
     <View style={{ flex: 1, backgroundColor: theme === 'dark' ? '#12121bff' : undefined }}>
       {/* Header */}
@@ -163,6 +184,14 @@ export default function DetailsScreen() {
       {activeTab === 'Stats' && (
         <ScrollView style={styles.tabContent}>
           <Text style={[styles.sectionTitle, { color: theme === 'dark' ? '#fff' : undefined }]}>Statistics</Text>
+
+          {/* Show current score when match is active (sourced from API) */}
+          {isActive && (
+            <View style={[styles.statCard, theme === 'dark' ? { backgroundColor: '#696a88ff' } : undefined]}>
+              <Text style={{ color: theme === 'dark' ? '#000' : undefined }}>Score</Text>
+              <Text style={[styles.statValue, { color: theme === 'dark' ? '#000' : undefined }]}>{currentScore}</Text>
+            </View>
+          )}
 
           <View style={[styles.statCard, theme === 'dark' ? { backgroundColor: '#696a88ff' } : undefined]}>
             <Text style={{ color: theme === 'dark' ? '#000' : undefined }}>League</Text>
