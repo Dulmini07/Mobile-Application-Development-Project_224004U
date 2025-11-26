@@ -1,6 +1,111 @@
-# Welcome to your Expo app 👋
+🎯Sportify – Sports Scores, Matches & Teams App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A modern React Native + Expo app that allows users to explore upcoming matches, view detailed stats, browse teams, and manage favourites — powered by TheSportsDB API.
+
+🚀 Features
+✅ User Authentication
+
+Register & Login (DummyJSON API)
+
+Form validation using Formik + Yup
+
+Local auth persistence with Redux Persist
+
+Protected routes (tabs hidden until login)
+
+🏠 Home Screen
+
+Live data fetched from TheSportsDB
+
+Match cards with:
+
+Team badges
+
+Scores
+
+Match time
+
+Tap to view full match details
+
+📄 Match Details Screen
+
+Beautiful UI + gradients
+
+Tabs: Overview, Stats, Players
+
+Add/remove favourites
+
+Highlights & news sections
+
+🔍 Explore Screen
+
+Searchable list of teams
+
+Team logos, country, league
+
+API: TheSportsDB → Premier League teams
+
+⭐ Favourites
+
+Add/remove favourites from Home & Details
+
+Stored persistently using Redux Toolkit + Persist
+
+👤 Profile
+
+View logged-in user info
+
+Upload profile picture (Expo Image Picker)
+
+Edit name/email
+
+Logout button
+
+🎨 Styling & UI
+
+Fully responsive UI
+
+Global theming
+
+Dark + Light mode toggle
+
+Feather Icons throughout the app
+
+🎬 Splash Screen
+
+Animated splash with:
+
+Gradient background
+
+Logo
+
+Custom loader
+
+🛠 Tech Stack
+Feature	Technology
+Frontend	React Native, Expo Router
+State Management	Redux Toolkit, Redux Persist
+Authentication	DummyJSON API
+Sports Data	TheSportsDB API
+UI	Feather Icons, Linear Gradient, Animated API
+Image Upload	Expo Image Picker
+
+🌐 APIs Used
+1️⃣ DummyJSON – Authentication
+
+Login → /auth/login
+
+Register → /users/add
+
+2️⃣ SportsDB – Matches & Teams
+
+Upcoming matches
+
+Team logos
+
+Player list
+
+Events
 
 ## Get started
 
